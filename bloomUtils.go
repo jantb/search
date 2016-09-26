@@ -1,0 +1,17 @@
+package main
+
+import (
+	"strings"
+	"unicode"
+)
+
+func getBloomKeysFromLine(line string)[][]byte{
+	fields := strings.FieldsFunc(line, func(r rune) bool{
+		return unicode.IsSpace(r) || unicode.IsSymbol(r) || unicode.IsPunct(r)
+	})
+	keys := [][]byte{}
+	for _, field := range fields {
+		keys = append(keys, []byte(field))
+	}
+	return keys
+}
