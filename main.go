@@ -13,6 +13,7 @@ import (
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
+var bool = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
 
 func main() {
@@ -57,6 +58,7 @@ func main() {
 				fileMonitor := FileMonitor{
 					Path:filep,
 					Offset:0,
+					Poll: *poll
 				}
 				by, err := json.Marshal(fileMonitor)
 				if err != nil {

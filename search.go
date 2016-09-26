@@ -22,10 +22,11 @@ type Event struct {
 type FileMonitor struct {
 	Path   string
 	Offset int64
+	Poll bool
 }
 
 func tailFile(fileMonitor FileMonitor) {
-	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: false, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{0, os.SEEK_SET}})
+	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{0, os.SEEK_SET}})
 	var key []byte
 	counter := 0
 	formats := []string{"2006/01/02 15:04:05", "2006-01-02 15:04:05.000"}
