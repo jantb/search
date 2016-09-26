@@ -16,6 +16,7 @@ var filename = flag.String("add", "", "Filename to monitor")
 var db *bolt.DB
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	flag.Parse()
 
 	usr, err := user.Current()
