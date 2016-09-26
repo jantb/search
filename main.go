@@ -13,7 +13,7 @@ import (
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
-var bool = flag.Bool("poll", false, "use poll")
+var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
 
 func main() {
