@@ -149,7 +149,7 @@ func SearchFor(t []byte, s int, seek int64) ([]Event) {
 		c := b.Cursor()
 		k, v := c.Last()
 		for i := int64(0); i < seek; i++ {
-			c.Prev()
+			k, v = c.Prev()
 		}
 		for ; k != nil && count < s; k, v = c.Prev() {
 			count++
