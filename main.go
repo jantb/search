@@ -58,7 +58,7 @@ func main() {
 				fileMonitor := FileMonitor{
 					Path:filep,
 					Offset:0,
-					Poll: *poll
+					Poll: *poll,
 				}
 				by, err := json.Marshal(fileMonitor)
 				if err != nil {
