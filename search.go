@@ -149,9 +149,7 @@ func SearchFor(t []byte, s int, seek int64) ([]Event) {
 		b := tx.Bucket([]byte("Events"))
 		c := b.Cursor()
 		k, v := c.Last()
-		for i := int64(0); i < seek; i++ {
-			k, v = c.Prev()
-		}
+
 		for ; k != nil && count < s; k, v = c.Prev() {
 
 			var event Event
@@ -168,7 +166,7 @@ func SearchFor(t []byte, s int, seek int64) ([]Event) {
 			keys := strings.Split(string(t), " ")
 			add := true
 			for _, key := range keys {
-				if key == "" {
+				if strings.TrimSpace(key) == "" {
 					continue
 				}
 				if key[:1] == "!" {
@@ -184,8 +182,12 @@ func SearchFor(t []byte, s int, seek int64) ([]Event) {
 				}
 			}
 			if add {
-				count++
-				events = append(events, event)
+				if seek == int64(0) {
+					count++
+					events = append(events, event)
+					continue
+				}
+				seek--
 			}
 		}
 		return nil
