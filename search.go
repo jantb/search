@@ -26,7 +26,7 @@ type FileMonitor struct {
 }
 
 func tailFile(fileMonitor FileMonitor) {
-	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{0, os.SEEK_SET}})
+	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
 	var key []byte
 	counter := 0
 	formats := []string{"2006/01/02 15:04:05", "2006-01-02 15:04:05.000"}
@@ -38,7 +38,7 @@ func tailFile(fileMonitor FileMonitor) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fileMonitor.Offset += o
+		fileMonitor.Offset = o
 		db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Files"))
 			by, err := json.Marshal(fileMonitor)

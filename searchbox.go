@@ -287,7 +287,9 @@ func redraw_all() {
 		previ = i
 		offset := 0;
 		for index, r := range event.Ts.Format(time.RFC3339) {
-			termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
+			if i < h - 2 && i >= 0 {
+				termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
+			}
 			offset++
 		}
 		offset++
@@ -299,7 +301,9 @@ func redraw_all() {
 				pastOffset = ir + 1
 				continue
 			}
-			termbox.SetCell(ir + offset - pastOffset, i, r, coldef, coldef)
+			if i < h - 2 && i >= 0 {
+				termbox.SetCell(ir + offset - pastOffset, i, r, coldef, coldef)
+			}
 		}
 	}
 	nodecount := 0
