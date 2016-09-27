@@ -54,7 +54,7 @@ func main() {
 			err = db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte("Files"))
 				dir, _ := filepath.Abs(filepath.Dir(*filename))
-				filep := filepath.Join(dir, *filename)
+				filep := filepath.Join(dir, filepath.Base(*filename))
 				fileMonitor := FileMonitor{
 					Path:filep,
 					Offset:0,

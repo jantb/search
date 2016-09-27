@@ -153,7 +153,7 @@ func SearchFor(t []byte, s int, seek int64) ([]Event) {
 			k, v = c.Prev()
 		}
 		for ; k != nil && count < s; k, v = c.Prev() {
-			count++
+
 			var event Event
 			err := json.Unmarshal(v, &event)
 			if err != nil {
@@ -184,6 +184,7 @@ func SearchFor(t []byte, s int, seek int64) ([]Event) {
 				}
 			}
 			if add {
+				count++
 				events = append(events, event)
 			}
 		}
