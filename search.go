@@ -24,6 +24,10 @@ type FileMonitor struct {
 	Offset int64
 	Poll bool
 }
+type Meta struct {
+	Count   int64
+}
+
 
 func tailFile(fileMonitor FileMonitor) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
@@ -46,6 +50,13 @@ func tailFile(fileMonitor FileMonitor) {
 				log.Fatal(err)
 			}
 			b.Put([]byte(fileMonitor.Path), by)
+			b = tx.Bucket([]byte("Meta"))
+			by = b.Get([]byte("Meta"))
+			meta := Meta{}
+			json.Unmarshal(by, &meta)
+			meta.Count++
+			by,_ = json.Marshal(meta)
+			b.Put([]byte("Meta"), by)
 			return nil
 		})
 		counter++
@@ -64,7 +75,7 @@ func tailFile(fileMonitor FileMonitor) {
 				}
 			}
 		}
-		if len(text) >= len(f) {
+		if len(text) > len(f) {
 			ti, err := time.Parse(f, text[:len(f)])
 			if err != nil {
 				ok = -1

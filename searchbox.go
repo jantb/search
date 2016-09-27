@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/boltdb/bolt"
 	"sync"
+	"encoding/json"
 )
 
 var mutex = &sync.Mutex{}
@@ -306,11 +307,14 @@ func redraw_all() {
 			}
 		}
 	}
-	nodecount := 0
+	nodecount := int64(0)
 
 	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Events"))
-		nodecount = b.Stats().KeyN
+		b := tx.Bucket([]byte("Meta"))
+		by := b.Get([]byte("Meta"))
+		meta := Meta{}
+		json.Unmarshal(by, &meta)
+		nodecount =meta.Count
 		return nil
 	})
 
