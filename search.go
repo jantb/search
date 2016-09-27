@@ -22,12 +22,11 @@ type Event struct {
 type FileMonitor struct {
 	Path   string
 	Offset int64
-	Poll bool
+	Poll   bool
 }
 type Meta struct {
-	Count   int64
+	Count int64
 }
-
 
 func tailFile(fileMonitor FileMonitor) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
@@ -55,7 +54,7 @@ func tailFile(fileMonitor FileMonitor) {
 			meta := Meta{}
 			json.Unmarshal(by, &meta)
 			meta.Count++
-			by,_ = json.Marshal(meta)
+			by, _ = json.Marshal(meta)
 			b.Put([]byte("Meta"), by)
 			return nil
 		})
@@ -153,7 +152,7 @@ func tailFile(fileMonitor FileMonitor) {
 		log.Fatal(err)
 	}
 }
-func SearchFor(t []byte, s int, seek int64) ([]Event) {
+func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	var events []Event
 	count := 0
 	err := db.View(func(tx *bolt.Tx) error {
@@ -162,49 +161,54 @@ func SearchFor(t []byte, s int, seek int64) ([]Event) {
 		k, v := c.Last()
 
 		for ; k != nil && count < s; k, v = c.Prev() {
+			select {
+			case <-quit:
+				return nil
+			default:
 
-			var event Event
-			err := json.Unmarshal(v, &event)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if len(t) == 0 {
-				events = append(events, event)
-				continue
-			}
-
-			keys := strings.Split(string(t), " ")
-			add := true
-			for _, key := range keys {
-				if strings.TrimSpace(key) == "" {
-					continue
+				var event Event
+				err := json.Unmarshal(v, &event)
+				if err != nil {
+					log.Fatal(err)
 				}
-				if key[:1] == "!" {
-					if event.Bloom.MayContain([]byte(key[1:])) {
-						add = false
-						break
-					}
-				} else {
-					if !event.Bloom.MayContain([]byte(key)) || !strings.Contains(event.Data, key) {
-						add = false
-						continue
-					}
-				}
-			}
-			if add {
-				if seek == int64(0) {
-					count++
+
+				if len(t) == 0 {
 					events = append(events, event)
 					continue
 				}
-				seek--
+
+				keys := strings.Split(string(t), " ")
+				add := true
+				for _, key := range keys {
+					if strings.TrimSpace(key) == "" {
+						continue
+					}
+					if key[:1] == "!" {
+						if event.Bloom.MayContain([]byte(key[1:])) {
+							add = false
+							break
+						}
+					} else {
+						if !event.Bloom.MayContain([]byte(key)) || !strings.Contains(event.Data, key) {
+							add = false
+							continue
+						}
+					}
+				}
+				if add {
+					if seek == int64(0) {
+						count++
+						events = append(events, event)
+						continue
+					}
+					seek--
+				}
 			}
 		}
+		ch <- events
 		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	return events
 }

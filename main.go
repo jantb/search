@@ -93,17 +93,25 @@ func main() {
 	}
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
+	edit_box.eventChan = make(chan []Event)
+	edit_box.quitSearch = make(chan bool)
 	go func() {
 		for {
 			time.Sleep(time.Millisecond * 100)
 			if edit_box.seek == int64(0) {
-				edit_box.Search(edit_box.text,edit_box.seek )
+				edit_box.Search( )
 			}
 			redraw_all()
 		}
 	}()
+	go func() {
+		for {
+			edit_box.events = <-edit_box.eventChan
+			redraw_all()
+		}
+	}()
 
-	edit_box.Search([]byte(""), int64(0))
+	edit_box.Search()
 	mainloop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {

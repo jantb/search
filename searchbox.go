@@ -79,6 +79,8 @@ type EditBox struct {
 	text           []byte
 	seek           int64
 	line_voffset   int
+	eventChan 	chan []Event
+	quitSearch 	chan bool
 	cursor_boffset int // cursor offset in bytes
 	cursor_voffset int // visual cursor offset in termbox cells
 	cursor_coffset int // cursor offset in unicode code points
@@ -206,7 +208,7 @@ func (eb *EditBox) DeleteRuneBackward() {
 	eb.MoveCursorOneRuneBackward()
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
-	eb.Search(eb.text, eb.seek)
+	eb.Search()
 }
 
 func (eb *EditBox) DeleteRuneForward() {
@@ -215,19 +217,19 @@ func (eb *EditBox) DeleteRuneForward() {
 	}
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
-	eb.Search(eb.text, eb.seek)
+	eb.Search()
 }
 
 func (eb *EditBox) DeleteTheRestOfTheLine() {
 	eb.text = eb.text[:eb.cursor_boffset]
-	eb.Search(eb.text, eb.seek)
+	eb.Search()
 }
 
 func (eb *EditBox) InsertRune(r rune) {
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	eb.text = byte_slice_insert(eb.text, eb.cursor_boffset, buf[:n])
-	eb.Search(eb.text, eb.seek)
+	go eb.Search()
 	eb.MoveCursorOneRuneForward()
 }
 
@@ -235,7 +237,7 @@ func (eb *EditBox) ScrollUp() {
 	mutex.Lock()
 	eb.seek++
 	mutex.Unlock()
-	eb.Search(eb.text, eb.seek)
+	eb.Search()
 }
 
 func (eb *EditBox) ScrollDown() {
@@ -245,19 +247,21 @@ func (eb *EditBox) ScrollDown() {
 	}
 	mutex.Unlock()
 
-	eb.Search(eb.text, eb.seek)
+	eb.Search()
 }
 func (eb *EditBox) Follow() {
 	mutex.Lock()
 	eb.seek = int64(0)
 	mutex.Unlock()
 
-	eb.Search(eb.text, eb.seek)
+	eb.Search()
 }
 
-func (eb *EditBox) Search(t []byte, seek int64) {
+func (eb *EditBox) Search() {
 	_, h := termbox.Size()
-	eb.events = SearchFor(t, h - 2, seek)
+	close(eb.quitSearch)
+	eb.quitSearch = make(chan bool)
+	SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch)
 }
 
 // Please, keep in mind that cursor depends on the value of line_voffset, which
