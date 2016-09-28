@@ -86,7 +86,9 @@ func tailFile(fileMonitor FileMonitor) {
 					log.Fatal(err)
 				}
 				event.Data += "\n" + text
-				event.Bloom = bloom.NewFilter(nil, getBloomKeysFromLine(event.Data), 10)
+				keys := getBloomKeysFromLine(event.Data + fileMonitor.Path)
+				keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
+				event.Bloom = bloom.NewFilter(nil, keys, 10)
 				event.Lines = event.Lines + 1
 				by, err = event.Marshal(nil)
 				if err != nil {
@@ -101,7 +103,9 @@ func tailFile(fileMonitor FileMonitor) {
 			}
 			continue
 		}
-		filter := bloom.NewFilter(nil, getBloomKeysFromLine(text), 10)
+		keys := getBloomKeysFromLine(text)
+		keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
+		filter := bloom.NewFilter(nil, keys, 10)
 
 		var event = Event{
 			Ts: tt,
@@ -198,7 +202,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 							break
 						}
 					} else {
-						if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !strings.Contains(event.Data, key) {
+						if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key)|| strings.Contains(event.Path, key)) {
 							add = false
 							continue
 						}
