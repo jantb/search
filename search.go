@@ -180,7 +180,6 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 				if err != nil {
 					log.Fatal(err)
 				}
-
 				if len(t) == 0 {
 					count++
 					events = append(events, event)

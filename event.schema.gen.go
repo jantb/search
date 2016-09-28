@@ -13,15 +13,30 @@ var (
 )
 
 type Event struct {
+	Bloom []byte
 	Ts    time.Time
 	Data  string
 	Lines int32
 	Path  string
-	Bloom []byte
 }
 
 func (d *Event) Size() (s uint64) {
 
+	{
+		l := uint64(len(d.Bloom))
+
+		{
+
+			t := l
+			for t >= 0x80 {
+				t >>= 7
+				s++
+			}
+			s++
+
+		}
+		s += l
+	}
 	{
 		l := uint64(len(d.Data))
 
@@ -52,21 +67,6 @@ func (d *Event) Size() (s uint64) {
 		}
 		s += l
 	}
-	{
-		l := uint64(len(d.Bloom))
-
-		{
-
-			t := l
-			for t >= 0x80 {
-				t >>= 7
-				s++
-			}
-			s++
-
-		}
-		s += l
-	}
 	s += 19
 	return
 }
@@ -82,11 +82,30 @@ func (d *Event) Marshal(buf []byte) ([]byte, error) {
 	i := uint64(0)
 
 	{
+		l := uint64(len(d.Bloom))
+
+		{
+
+			t := uint64(l)
+
+			for t >= 0x80 {
+				buf[i+0] = byte(t) | 0x80
+				t >>= 7
+				i++
+			}
+			buf[i+0] = byte(t)
+			i++
+
+		}
+		copy(buf[i:], d.Bloom)
+		i += l
+	}
+	{
 		b, err := d.Ts.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		copy(buf[0:], b)
+		copy(buf[i+0:], b)
 	}
 	{
 		l := uint64(len(d.Data))
@@ -137,31 +156,37 @@ func (d *Event) Marshal(buf []byte) ([]byte, error) {
 		copy(buf[i+19:], d.Path)
 		i += l
 	}
-	{
-		l := uint64(len(d.Bloom))
-
-		{
-
-			t := uint64(l)
-
-			for t >= 0x80 {
-				buf[i+19] = byte(t) | 0x80
-				t >>= 7
-				i++
-			}
-			buf[i+19] = byte(t)
-			i++
-
-		}
-		copy(buf[i:], d.Bloom)
-		i += l
-	}
 	return buf[:i+19], nil
 }
 
 func (d *Event) Unmarshal(buf []byte) (uint64, error) {
 	i := uint64(0)
 
+	{
+		l := uint64(0)
+
+		{
+
+			bs := uint8(7)
+			t := uint64(buf[i+0] & 0x7F)
+			for buf[i+0]&0x80 == 0x80 {
+				i++
+				t |= uint64(buf[i+0]&0x7F) << bs
+				bs += 7
+			}
+			i++
+
+			l = t
+
+		}
+		if uint64(cap(d.Bloom)) >= l {
+			d.Bloom = d.Bloom[:l]
+		} else {
+			d.Bloom = make([]byte, l)
+		}
+		copy(d.Bloom, buf[i:])
+		i += l
+	}
 	{
 		d.Ts.UnmarshalBinary(buf[i+0 : i+0+15])
 	}
@@ -208,31 +233,6 @@ func (d *Event) Unmarshal(buf []byte) (uint64, error) {
 
 		}
 		d.Path = string(buf[i+19 : i+19+l])
-		i += l
-	}
-	{
-		l := uint64(0)
-
-		{
-
-			bs := uint8(7)
-			t := uint64(buf[i+19] & 0x7F)
-			for buf[i+19]&0x80 == 0x80 {
-				i++
-				t |= uint64(buf[i+19]&0x7F) << bs
-				bs += 7
-			}
-			i++
-
-			l = t
-
-		}
-		if uint64(cap(d.Bloom)) >= l {
-			d.Bloom = d.Bloom[:l]
-		} else {
-			d.Bloom = make([]byte, l)
-		}
-		copy(d.Bloom, buf[i:])
 		i += l
 	}
 	return i + 19, nil
