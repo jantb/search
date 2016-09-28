@@ -318,9 +318,7 @@ func redraw_all() {
 		text := event.Data
 		i = previ - 2
 
-		text, n := insertNewlineAtIInString(text, w - offset)
-		i -= n
-		for n > 0{
+		for n := 1; n > 0; {
 			text, n = insertNewlineAtIInString(text, w - offset)
 			i -= n
 		}
