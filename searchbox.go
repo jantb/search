@@ -9,6 +9,7 @@ import (
 	"github.com/boltdb/bolt"
 	"sync"
 	"encoding/json"
+	"strings"
 )
 
 var mutex = &sync.Mutex{}
@@ -79,8 +80,8 @@ type EditBox struct {
 	text           []byte
 	seek           int64
 	line_voffset   int
-	eventChan 	chan []Event
-	quitSearch 	chan bool
+	eventChan      chan []Event
+	quitSearch     chan bool
 	cursor_boffset int // cursor offset in bytes
 	cursor_voffset int // visual cursor offset in termbox cells
 	cursor_coffset int // cursor offset in unicode code points
@@ -274,6 +275,24 @@ func (eb *EditBox) CursorX() int {
 
 var edit_box EditBox
 
+func insertNewlineAtIInString(in string, i int) (string, int) {
+	split := strings.Split(in, "\n")
+	c := 0;
+	for j := 0; j < len(split); j++ {
+		in = split[j]
+		if len(in) < i {
+			continue
+		}
+		i = strings.LastIndex(in[:i], " ")
+		s := []rune(in)
+		s[i] = '\n'
+		split[j] = string(s)
+		c++
+	}
+
+	return strings.Join(split, "\n"), c
+}
+
 func redraw_all() {
 	mutex.Lock()
 	const coldef = termbox.ColorDefault
@@ -289,27 +308,34 @@ func redraw_all() {
 	previ := h - 2
 
 	for i, event := range edit_box.events {
+		offset := 21;
+		text := event.Data
 		i = previ - 1
+
+		text, n := insertNewlineAtIInString(text, w - offset)
+
+		i -= n
+
 		i -= int(event.Lines)
 		previ = i
-		offset := 0;
 		for index, r := range event.Ts.Format(time.RFC3339) {
 			if i < h - 2 && i >= 0 {
 				termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
 			}
-			offset++
+
 		}
-		offset++
+
 		pastOffset := 0
 
-		for ir, r := range event.Data {
+		for ir, r := range text {
 			if r == '\n' {
 				i += 1
 				pastOffset = ir + 1
 				continue
 			}
 			if i < h - 2 && i >= 0 {
-				termbox.SetCell(ir + offset - pastOffset, i, r, coldef, coldef)
+				x := ir + offset - pastOffset
+				termbox.SetCell(x, i, r, coldef, coldef)
 			}
 		}
 	}
@@ -320,7 +346,7 @@ func redraw_all() {
 		by := b.Get([]byte("Meta"))
 		meta := Meta{}
 		json.Unmarshal(by, &meta)
-		nodecount =meta.Count
+		nodecount = meta.Count
 		return nil
 	})
 
