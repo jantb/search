@@ -20,7 +20,7 @@ type Meta struct {
 func tailFile(fileMonitor FileMonitor) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
 	var key []byte
-	formats := []string{"2006/01/02 15:04:05", "2006-01-02 15:04:05.000"}
+	formats := []string{"2006/01/02 15:04:05", "2006-01-02 15:04:05.000", time.ANSIC,time.UnixDate,time.RubyDate, time.RFC822, time.RFC822Z, time.RFC850, time.RFC1123, time.RFC1123Z , time.RFC3339, time.RFC3339Nano}
 	f := ""
 	h := md5.New()
 	prevo := int64(0)

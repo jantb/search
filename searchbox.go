@@ -282,7 +282,7 @@ func redraw_all() {
 	var edit_box_width = w
 	midy := h - 1
 	midx := 0
-	fill(midx, midy - 1, edit_box_width, 1, termbox.Cell{Ch: '─'})
+	fill(midx, midy - 1, edit_box_width, 1, termbox.Cell{Ch: '─', Fg:termbox.ColorBlue})
 
 	edit_box.Draw(midx, midy, edit_box_width, 1)
 	termbox.SetCursor(midx + edit_box.CursorX(), midy)
