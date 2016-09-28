@@ -276,16 +276,22 @@ func (eb *EditBox) CursorX() int {
 var edit_box EditBox
 
 func insertNewlineAtIInString(in string, i int) (string, int) {
+	if i < 21 {
+		return  in, 0
+	}
 	split := strings.Split(in, "\n")
 	c := 0;
 	for j := 0; j < len(split); j++ {
-		in = split[j]
-		if len(in) < i {
+		inn := split[j]
+		if len(inn) < i {
 			continue
 		}
-		i = strings.LastIndex(in[:i], " ")
-		s := []rune(in)
-		s[i] = '\n'
+		x := strings.LastIndex(inn[:i], " ")
+		if x == -1 {
+			continue
+		}
+		s := []rune(inn)
+		s[x] = '\n'
 		split[j] = string(s)
 		c++
 	}
@@ -310,11 +316,14 @@ func redraw_all() {
 	for i, event := range edit_box.events {
 		offset := 21;
 		text := event.Data
-		i = previ - 1
+		i = previ - 2
 
 		text, n := insertNewlineAtIInString(text, w - offset)
-
 		i -= n
+		for n > 0{
+			text, n = insertNewlineAtIInString(text, w - offset)
+			i -= n
+		}
 
 		i -= int(event.Lines)
 		previ = i
@@ -322,7 +331,6 @@ func redraw_all() {
 			if i < h - 2 && i >= 0 {
 				termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
 			}
-
 		}
 
 		pastOffset := 0
@@ -338,6 +346,11 @@ func redraw_all() {
 				termbox.SetCell(x, i, r, coldef, coldef)
 			}
 		}
+		ns := fmt.Sprintf("Source: %s", event.Path)
+		for ix, r := range ns {
+			termbox.SetCell(offset + ix, i+1, r, termbox.ColorCyan, coldef)
+		}
+
 	}
 	nodecount := int64(0)
 
@@ -350,7 +363,7 @@ func redraw_all() {
 		return nil
 	})
 
-	ns := fmt.Sprintf("%d", nodecount)
+	ns := fmt.Sprintf("Events: %d", nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
 	}
