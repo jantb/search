@@ -259,8 +259,10 @@ func (eb *EditBox) Follow() {
 
 func (eb *EditBox) Search() {
 	_, h := termbox.Size()
+	mutex.Lock()
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
+	mutex.Unlock()
 	SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch)
 }
 
