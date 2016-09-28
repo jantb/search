@@ -35,9 +35,7 @@ func main() {
 	err = db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Events"))
 		tx.CreateBucketIfNotExists([]byte("Files"))
-		b,_ := tx.CreateBucketIfNotExists([]byte("Meta"))
-		by, _ :=json.Marshal(Meta{})
-		b.Put([]byte("meta"), by)
+		tx.CreateBucketIfNotExists([]byte("Meta"))
 		return nil
 	})
 	if err != nil {

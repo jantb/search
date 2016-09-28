@@ -141,6 +141,10 @@ func tailFile(fileMonitor FileMonitor) {
 			b.Put([]byte(fileMonitor.Path), by)
 			b = tx.Bucket([]byte("Meta"))
 			by = b.Get([]byte("Meta"))
+			if by == nil {
+				b, _ :=json.Marshal(Meta{})
+				by = b
+			}
 			meta := Meta{}
 			json.Unmarshal(by, &meta)
 			meta.Count++
