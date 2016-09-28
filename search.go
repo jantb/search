@@ -10,6 +10,7 @@ import (
 	"strings"
 	"os"
 	"encoding/json"
+	"strconv"
 )
 
 type Meta struct {
@@ -74,13 +75,17 @@ func tailFile(fileMonitor FileMonitor) {
 				keys := getBloomKeysFromLine(event.Data)
 				keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
 				event.Fields=[]Field{}
+				fields :=[][]byte{}
 				for _, key := range keys {
 					if strings.ContainsRune(string(key), '=') {
 						split := strings.Split(string(key), "=")
 						event.Fields = append(event.Fields, Field{Key:split[0],Value:split[1]})
+						fields = append(fields, []byte(split[0]))
+						fields = append(fields, []byte(split[1]))
 					}
 				}
 
+				keys = append(keys, fields...)
 				event.Bloom = bloom.NewFilter(nil, keys, 10)
 				event.Lines = event.Lines + 1
 				by, err = event.Marshal(nil)
@@ -98,20 +103,24 @@ func tailFile(fileMonitor FileMonitor) {
 		}
 		keys := getBloomKeysFromLine(text)
 		keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
-		filter := bloom.NewFilter(nil, keys, 10)
+
 
 		var event = Event{
 			Ts: tt,
 			Data: text,
-			Bloom: filter,
 			Path: fileMonitor.Path,
 		}
+		fields :=[][]byte{}
 		for _, key := range keys {
 			if strings.ContainsRune(string(key), '=') {
 				split := strings.Split(string(key), "=")
 				event.Fields = append(event.Fields, Field{Key:split[0],Value:split[1]})
+				fields = append(fields, []byte(split[0]))
+				fields = append(fields, []byte(split[1]))
 			}
 		}
+		keys = append(keys, fields...)
+		event.Bloom = bloom.NewFilter(nil, keys, 10)
 
 		by, err := event.Marshal(nil)
 		if err != nil {
@@ -196,7 +205,62 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 					if strings.TrimSpace(key) == "" {
 						continue
 					}
-					if key[:1] == "!" {
+
+					if strings.Contains(key, "<") {
+						split := strings.Split(key, "<")
+						if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+							add = false
+							continue
+						}
+						val := ""
+						for _, f :=range event.Fields  {
+							if split[0] == f.Key {
+								val = f.Value
+							}
+						}
+						i, err := strconv.Atoi(split[1])
+						if err != nil {
+							add = false
+							continue
+						}
+						i2, err := strconv.Atoi(val)
+						if err != nil {
+							add = false
+							continue
+						}
+						if i2 >= i {
+							add = false
+							continue
+						}
+
+					}else if strings.Contains(key, ">") {
+						split := strings.Split(key, ">")
+						if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+							add = false
+							continue
+						}
+						val := ""
+						for _, f :=range event.Fields  {
+							if split[0] == f.Key {
+								val = f.Value
+							}
+						}
+						i, err := strconv.Atoi(split[1])
+						if err != nil {
+							add = false
+							continue
+						}
+						i2, err := strconv.Atoi(val)
+						if err != nil {
+							add = false
+							continue
+						}
+						if i2 <= i {
+							add = false
+							continue
+						}
+
+					}else if key[:1] == "!" {
 						if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
 							add = false
 							break
