@@ -7,6 +7,9 @@ import (
 
 func getBloomKeysFromLine(line string)[][]byte{
 	fields := strings.FieldsFunc(line, func(r rune) bool{
+		if r == '=' {
+			return false
+		}
 		return unicode.IsSpace(r) || unicode.IsSymbol(r) || unicode.IsPunct(r)
 	})
 	keys := [][]byte{}
