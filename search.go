@@ -13,13 +13,13 @@ import (
 	"fmt"
 )
 
-type Event struct {
-	Ts    time.Time
-	Data  string
-	Lines int
-	Path  string
-	Bloom bloom.Filter
-}
+//type Event struct {
+//	Ts    time.Time
+//	Data  string
+//	Lines int
+//	Path  string
+//	Bloom bloom.Filter
+//}
 type FileMonitor struct {
 	Path   string
 	Offset int64
@@ -81,14 +81,14 @@ func tailFile(fileMonitor FileMonitor) {
 
 				var event Event
 				by := b.Get(key)
-				err := json.Unmarshal(by, &event)
+				_, err := event.Unmarshal(by)
 				if err != nil {
 					log.Fatal(err)
 				}
 				event.Data += "\n" + text
 				event.Bloom = bloom.NewFilter(nil, getBloomKeysFromLine(event.Data), 10)
 				event.Lines = event.Lines + 1
-				by, err = json.Marshal(event)
+				by, err = event.Marshal(nil)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -109,7 +109,7 @@ func tailFile(fileMonitor FileMonitor) {
 			Bloom: filter,
 			Path: fileMonitor.Path,
 		}
-		by, err := json.Marshal(event)
+		by, err := event.Marshal(nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -121,7 +121,7 @@ func tailFile(fileMonitor FileMonitor) {
 			bt := b.Get(key)
 			if bt != nil {
 				var event Event
-				err := json.Unmarshal(bt, &event)
+				_,err := event.Unmarshal(bt)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -176,12 +176,13 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 			default:
 
 				var event Event
-				err := json.Unmarshal(v, &event)
+				_,err := event.Unmarshal(v)
 				if err != nil {
 					log.Fatal(err)
 				}
 
 				if len(t) == 0 {
+					count++
 					events = append(events, event)
 					continue
 				}
@@ -193,12 +194,12 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 						continue
 					}
 					if key[:1] == "!" {
-						if event.Bloom.MayContain([]byte(key[1:])) {
+						if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
 							add = false
 							break
 						}
 					} else {
-						if !event.Bloom.MayContain([]byte(key)) || !strings.Contains(event.Data, key) {
+						if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !strings.Contains(event.Data, key) {
 							add = false
 							continue
 						}
@@ -214,10 +215,11 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 				}
 			}
 		}
-		ch <- events
+
 		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
+	ch <- events
 }

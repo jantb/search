@@ -1,0 +1,7 @@
+struct Event {
+	Ts    time
+	Data  string
+	Lines int32
+	Path  string
+	Bloom []byte
+}

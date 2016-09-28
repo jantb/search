@@ -288,7 +288,7 @@ func redraw_all() {
 
 	for i, event := range edit_box.events {
 		i = previ - 1
-		i -= event.Lines
+		i -= int(event.Lines)
 		previ = i
 		offset := 0;
 		for index, r := range event.Ts.Format(time.RFC3339) {
