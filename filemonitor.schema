@@ -1,0 +1,5 @@
+struct FileMonitor {
+	Path   string
+	Offset int64
+	Poll   bool
+}

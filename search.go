@@ -5,25 +5,13 @@ import (
 	"log"
 	"github.com/hpcloud/tail"
 	"time"
-	"encoding/json"
 	"github.com/golang/leveldb/bloom"
 	"crypto/md5"
 	"strings"
 	"os"
+	"encoding/json"
 )
 
-//type Event struct {
-//	Ts    time.Time
-//	Data  string
-//	Lines int
-//	Path  string
-//	Bloom bloom.Filter
-//}
-type FileMonitor struct {
-	Path   string
-	Offset int64
-	Poll   bool
-}
 type Meta struct {
 	Count int64
 }
@@ -135,7 +123,7 @@ func tailFile(fileMonitor FileMonitor) {
 
 			fileMonitor.Offset = stopo
 			b = tx.Bucket([]byte("Files"))
-			by, err := json.Marshal(fileMonitor)
+			by, err := fileMonitor.Marshal(nil)
 			if err != nil {
 				log.Fatal(err)
 			}

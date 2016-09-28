@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"github.com/nsf/termbox-go"
-	"encoding/json"
 	"time"
 )
 
@@ -61,7 +60,7 @@ func main() {
 					Offset:0,
 					Poll: *poll,
 				}
-				by, err := json.Marshal(fileMonitor)
+				by, err := fileMonitor.Marshal(nil)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -76,7 +75,7 @@ func main() {
 		c := b.Cursor()
 		for k, f := c.First(); k != nil; k, f = c.Next() {
 			fileMonitor := FileMonitor{}
-			json.Unmarshal(f, &fileMonitor)
+			fileMonitor.Unmarshal(f)
 			if err != nil {
 				log.Fatal(err)
 			}
