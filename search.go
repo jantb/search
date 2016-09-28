@@ -10,6 +10,7 @@ import (
 	"crypto/md5"
 	"strings"
 	"os"
+	"fmt"
 )
 
 type Event struct {
@@ -31,39 +32,17 @@ type Meta struct {
 func tailFile(fileMonitor FileMonitor) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
 	var key []byte
-	counter := 0
 	formats := []string{"2006/01/02 15:04:05", "2006-01-02 15:04:05.000"}
 	f := ""
 	h := md5.New()
-
+	prevo :=int64(0)
+	stopo :=int64(0)
 	for line := range t.Lines {
-		o, err := t.Tell()
-		if err != nil {
-			log.Fatal(err)
-		}
-		fileMonitor.Offset = o
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Files"))
-			by, err := json.Marshal(fileMonitor)
-			if err != nil {
-				log.Fatal(err)
-			}
-			b.Put([]byte(fileMonitor.Path), by)
-			b = tx.Bucket([]byte("Meta"))
-			by = b.Get([]byte("Meta"))
-			meta := Meta{}
-			json.Unmarshal(by, &meta)
-			meta.Count++
-			by, _ = json.Marshal(meta)
-			b.Put([]byte("Meta"), by)
-			return nil
-		})
-		counter++
 		var ok int
 		var tt time.Time
 		text := line.Text
 
-		if counter == 1 {
+		if f == "" {
 			for _, format := range formats {
 				if len(text) >= len(format) {
 					_, err := time.Parse(format, text[:len(format)])
@@ -72,6 +51,11 @@ func tailFile(fileMonitor FileMonitor) {
 					}
 					f = format
 				}
+			}
+			if f== "" {
+				fmt.Println("Unknown date format")
+				fmt.Println(text)
+				os.Exit(-1)
 			}
 		}
 		if len(text) > len(f) {
@@ -83,9 +67,14 @@ func tailFile(fileMonitor FileMonitor) {
 				ok = 1
 				tt = ti
 				text = text[len(f) + 1:]
+				stopo = prevo
 			}
 		}
-
+		o, err := t.Tell()
+		if err != nil {
+			log.Fatal(err)
+		}
+		prevo = o
 		if ok == -1 || ok == 0 {
 			err = db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte("Events"))
@@ -142,8 +131,24 @@ func tailFile(fileMonitor FileMonitor) {
 			}
 
 			b.Put(key, by)
+
+			fileMonitor.Offset = stopo
+			b = tx.Bucket([]byte("Files"))
+			by, err := json.Marshal(fileMonitor)
+			if err != nil {
+				log.Fatal(err)
+			}
+			b.Put([]byte(fileMonitor.Path), by)
+			b = tx.Bucket([]byte("Meta"))
+			by = b.Get([]byte("Meta"))
+			meta := Meta{}
+			json.Unmarshal(by, &meta)
+			meta.Count++
+			by, _ = json.Marshal(meta)
+			b.Put([]byte("Meta"), by)
 			return nil
 		})
+
 		if err != nil {
 			log.Fatal(err)
 		}
