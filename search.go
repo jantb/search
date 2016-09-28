@@ -10,7 +10,6 @@ import (
 	"crypto/md5"
 	"strings"
 	"os"
-	"fmt"
 )
 
 //type Event struct {
@@ -53,9 +52,7 @@ func tailFile(fileMonitor FileMonitor) {
 				}
 			}
 			if f== "" {
-				fmt.Println("Unknown date format")
-				fmt.Println(text)
-				os.Exit(-1)
+				continue
 			}
 		}
 		if len(text) > len(f) {
