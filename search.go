@@ -194,8 +194,12 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 					log.Fatal(err)
 				}
 				if len(t) == 0 {
-					count++
-					events = append(events, event)
+					if seek == int64(0) {
+						count++
+						events = append(events, event)
+						continue
+					}
+					seek--
 					continue
 				}
 
