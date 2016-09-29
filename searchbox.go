@@ -13,6 +13,7 @@ import (
 )
 
 var mutex = &sync.Mutex{}
+var mutex2 = &sync.Mutex{}
 
 func tbprint(x, y int, fg, bg termbox.Attribute, msg string) {
 	for _, c := range msg {
@@ -264,7 +265,7 @@ func (eb *EditBox) Search() {
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
 	mutex.Unlock()
-	SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch)
+	go SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch)
 }
 
 // Please, keep in mind that cursor depends on the value of line_voffset, which

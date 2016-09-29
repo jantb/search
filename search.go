@@ -175,6 +175,8 @@ func tailFile(fileMonitor FileMonitor) {
 	}
 }
 func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
+	mutex2.Lock()
+	defer mutex2.Unlock()
 	var events []Event
 	count := 0
 	err := db.View(func(tx *bolt.Tx) error {
