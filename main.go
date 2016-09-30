@@ -97,7 +97,6 @@ func main() {
 			time.Sleep(time.Millisecond * 1000)
 			if edit_box.seek == int64(0) {
 				edit_box.Search()
-				redraw_all()
 			}
 		}
 	}()
