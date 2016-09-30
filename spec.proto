@@ -12,7 +12,7 @@ message Event {
     int32 lines = 3;
     string path = 4;
     repeated Field fields = 5;
-    int64 ts = 6;
+    string ts = 6;
 }
 message Field {
     string key = 1;

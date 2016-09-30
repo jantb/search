@@ -13,7 +13,7 @@ import (
 )
 
 
-func (e *Events) Get(ts int64, data string) (*Event, bool) {
+func (e *Events) Get(ts string, data string) (*Event, bool) {
 	for _, ev := range e.GetEvents() {
 		if data == ev.Data && ts == ev.Ts {
 			return ev, true
@@ -37,7 +37,7 @@ func tailFile(fileMonitor FileMonitor) {
 		Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
 	var key []byte
 	var prevData string
-	var prevTs int64
+	var prevTs string
 	formats := []string{"2006/01/02 15:04:05",
 		"2006-01-02 15:04:05.000",
 		time.ANSIC,
@@ -136,7 +136,7 @@ func tailFile(fileMonitor FileMonitor) {
 		keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
 
 		var event = Event{
-			Ts: tt.Unix(),
+			Ts: tt.Format(time.RFC3339),
 			Data: text,
 			Path: fileMonitor.Path,
 		}
@@ -208,6 +208,7 @@ func tailFile(fileMonitor FileMonitor) {
 func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	mutex2.Lock()
 	defer mutex2.Unlock()
+	ttt := time.Now()
 	var eventsRet []Event
 	count := 0
 	err := db.View(func(tx *bolt.Tx) error {
@@ -244,6 +245,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 						}
 						if !bloom.Filter(events.Bloom).MayContain([]byte(key)) {
 							noInSet = true
+							break
 						}
 					}
 					if noInSet {
@@ -351,5 +353,6 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	edit_box.stats = time.Now().Sub(ttt)
 	ch <- eventsRet
 }

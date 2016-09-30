@@ -86,6 +86,7 @@ type EditBox struct {
 	cursor_boffset int // cursor offset in bytes
 	cursor_voffset int // visual cursor offset in termbox cells
 	cursor_coffset int // cursor offset in unicode code points
+	stats          time.Duration
 }
 
 // Draws the EditBox in the given location, 'h' is not used at the moment
@@ -326,7 +327,7 @@ func redraw_all() {
 
 		i -= int(event.Lines)
 		previ = i
-		for index, r := range time.Unix(event.Ts, 0).Format(time.RFC3339) {
+		for index, r := range event.Ts{
 			if i < h - 2 && i >= 0 {
 				termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
 			}
@@ -362,7 +363,7 @@ func redraw_all() {
 		return nil
 	})
 
-	ns := fmt.Sprintf("Events: %d", nodecount)
+	ns := fmt.Sprintf("Search: %s Events: %d",edit_box.stats,nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
 	}
