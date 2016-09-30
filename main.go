@@ -60,7 +60,7 @@ func main() {
 					Offset:0,
 					Poll: *poll,
 				}
-				by, err := fileMonitor.Marshal(nil)
+				by, err := fileMonitor.Marshal()
 				if err != nil {
 					log.Fatal(err)
 				}

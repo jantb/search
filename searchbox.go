@@ -326,7 +326,7 @@ func redraw_all() {
 
 		i -= int(event.Lines)
 		previ = i
-		for index, r := range event.Ts.Format(time.RFC3339) {
+		for index, r := range time.Unix(event.Ts, 0).Format(time.RFC3339) {
 			if i < h - 2 && i >= 0 {
 				termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
 			}

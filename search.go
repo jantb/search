@@ -6,23 +6,51 @@ import (
 	"github.com/hpcloud/tail"
 	"time"
 	"github.com/golang/leveldb/bloom"
-	"crypto/md5"
 	"strings"
 	"os"
 	"encoding/json"
 	"strconv"
 )
 
-type Meta struct {
-	Count int64
-}
 
+func (e *Events) Get(ts int64, data string) (*Event, bool) {
+	for _, ev := range e.GetEvents() {
+		if data == ev.Data && ts == ev.Ts {
+			return ev, true
+		}
+	}
+	return &Event{}, false
+}
+func (e *Events) RegenerateBloom() {
+	keys := [][]byte{}
+	for _, ev := range e.Events {
+		keys = append(keys, getBloomKeysFromLine(ev.Data)...)
+		keys = append(keys, getBloomKeysFromLine(ev.Path)...)
+	}
+	e.Bloom = bloom.NewFilter(nil, keys, 10)
+}
 func tailFile(fileMonitor FileMonitor) {
-	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true, ReOpen:true, Poll: fileMonitor.Poll, Logger:tail.DiscardingLogger, Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
+	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
+		ReOpen:true,
+		Poll: fileMonitor.Poll,
+		Logger:tail.DiscardingLogger,
+		Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
 	var key []byte
-	formats := []string{"2006/01/02 15:04:05", "2006-01-02 15:04:05.000", time.ANSIC,time.UnixDate,time.RubyDate, time.RFC822, time.RFC822Z, time.RFC850, time.RFC1123, time.RFC1123Z , time.RFC3339, time.RFC3339Nano}
+	var prevData string
+	var prevTs int64
+	formats := []string{"2006/01/02 15:04:05",
+		"2006-01-02 15:04:05.000",
+		time.ANSIC,
+		time.UnixDate,
+		time.RubyDate,
+		time.RFC822,
+		time.RFC822Z,
+		time.RFC850,
+		time.RFC1123,
+		time.RFC1123Z,
+		time.RFC3339,
+		time.RFC3339Nano}
 	f := ""
-	h := md5.New()
 	prevo := int64(0)
 	stopo := int64(0)
 	for line := range t.Lines {
@@ -65,21 +93,24 @@ func tailFile(fileMonitor FileMonitor) {
 			err = db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte("Events"))
 
-				var event Event
 				by := b.Get(key)
-				_, err := event.Unmarshal(by)
+
+				var events Events
+				err := events.Unmarshal(by)
 				if err != nil {
 					log.Fatal(err)
 				}
+
+				event, _ := events.Get(prevTs, prevData)
 				event.Data += "\n" + text
+				prevData = event.Data
 				keys := getBloomKeysFromLine(event.Data)
 				keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
-				event.Fields=[]Field{}
-				fields :=[][]byte{}
+				fields := [][]byte{}
 				for _, key := range keys {
 					if strings.ContainsRune(string(key), '=') {
 						split := strings.Split(string(key), "=")
-						event.Fields = append(event.Fields, Field{Key:split[0],Value:split[1]})
+						event.Fields = append(event.Fields, &Field{Key:split[0], Value:split[1]})
 						fields = append(fields, []byte(split[0]))
 						fields = append(fields, []byte(split[1]))
 					}
@@ -87,8 +118,8 @@ func tailFile(fileMonitor FileMonitor) {
 
 				keys = append(keys, fields...)
 				event.Bloom = bloom.NewFilter(nil, keys, 10)
-				event.Lines = event.Lines + 1
-				by, err = event.Marshal(nil)
+				event.Lines += 1
+				by, err = events.Marshal()
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -104,17 +135,16 @@ func tailFile(fileMonitor FileMonitor) {
 		keys := getBloomKeysFromLine(text)
 		keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
 
-
 		var event = Event{
-			Ts: tt,
+			Ts: tt.Unix(),
 			Data: text,
 			Path: fileMonitor.Path,
 		}
-		fields :=[][]byte{}
+		fields := [][]byte{}
 		for _, key := range keys {
 			if strings.ContainsRune(string(key), '=') {
 				split := strings.Split(string(key), "=")
-				event.Fields = append(event.Fields, Field{Key:split[0],Value:split[1]})
+				event.Fields = append(event.Fields, &Field{Key:split[0], Value:split[1]})
 				fields = append(fields, []byte(split[0]))
 				fields = append(fields, []byte(split[1]))
 			}
@@ -122,32 +152,33 @@ func tailFile(fileMonitor FileMonitor) {
 		keys = append(keys, fields...)
 		event.Bloom = bloom.NewFilter(nil, keys, 10)
 
-		by, err := event.Marshal(nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		h.Reset()
-		key = []byte(tt.Format(time.RFC3339) + string(h.Sum([]byte(event.Data))))
+		key = []byte(tt.Truncate(1 * time.Minute).Format(time.RFC3339))
+		prevData = event.Data
+		prevTs = event.Ts
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Events"))
-			bt := b.Get(key)
-			if bt != nil {
-				var event Event
-				_, err := event.Unmarshal(bt)
-				if err != nil {
-					log.Fatal(err)
-				}
-				if event.Lines == 0 {
-					return nil
-				}
+			eventsb := b.Get(key)
+			if eventsb == nil {
+				var events Events
+				eventsb, _ = events.Marshal()
 			}
-
+			var events Events
+			events.Unmarshal(eventsb)
+			_, found := events.Get(event.Ts, event.Data)
+			if found {
+				return nil
+			}
+			events.Events = append(events.Events, &event)
+			events.RegenerateBloom()
+			by, err := events.Marshal()
+			if err != nil {
+				log.Panic(err)
+			}
 			b.Put(key, by)
 
 			fileMonitor.Offset = stopo
 			b = tx.Bucket([]byte("Files"))
-			by, err := fileMonitor.Marshal(nil)
+			by, err = fileMonitor.Marshal()
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -177,7 +208,7 @@ func tailFile(fileMonitor FileMonitor) {
 func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	mutex2.Lock()
 	defer mutex2.Unlock()
-	var events []Event
+	var eventsRet []Event
 	count := 0
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
@@ -190,101 +221,127 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 				return nil
 			default:
 
-				var event Event
-				_, err := event.Unmarshal(v)
+				var events Events
+				err := events.Unmarshal(v)
 				if err != nil {
 					log.Fatal(err)
 				}
-				if len(t) == 0 {
-					if seek == int64(0) {
-						count++
-						events = append(events, event)
-						continue
-					}
-					seek--
-					continue
-				}
-
 				keys := strings.Split(string(t), " ")
-				add := true
-				for _, key := range keys {
-					if strings.TrimSpace(key) == "" {
-						continue
+				noInSet := false
+				if len(t) != 0 {
+					for _, key := range keys {
+						if strings.Contains(key, "<") {
+							split := strings.Split(key, "<")
+							if !bloom.Filter(events.Bloom).MayContain([]byte(split[0])) {
+								continue
+							}
+						}
+						if strings.Contains(key, ">") {
+							split := strings.Split(key, ">")
+							if !bloom.Filter(events.Bloom).MayContain([]byte(split[0])) {
+								continue
+							}
+						}
+						if !bloom.Filter(events.Bloom).MayContain([]byte(key)) {
+							noInSet = true
+						}
 					}
-
-					if strings.Contains(key, "<") {
-						split := strings.Split(key, "<")
-						if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-							add = false
-							continue
-						}
-						val := ""
-						for _, f :=range event.Fields  {
-							if split[0] == f.Key {
-								val = f.Value
-							}
-						}
-						i, err := strconv.Atoi(split[1])
-						if err != nil {
-							add = false
-							continue
-						}
-						i2, err := strconv.Atoi(val)
-						if err != nil {
-							add = false
-							continue
-						}
-						if i2 >= i {
-							add = false
-							continue
-						}
-
-					}else if strings.Contains(key, ">") {
-						split := strings.Split(key, ">")
-						if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-							add = false
-							continue
-						}
-						val := ""
-						for _, f :=range event.Fields  {
-							if split[0] == f.Key {
-								val = f.Value
-							}
-						}
-						i, err := strconv.Atoi(split[1])
-						if err != nil {
-							add = false
-							continue
-						}
-						i2, err := strconv.Atoi(val)
-						if err != nil {
-							add = false
-							continue
-						}
-						if i2 <= i {
-							add = false
-							continue
-						}
-
-					}else if key[:1] == "!" {
-						if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
-							add = false
-							break
-						}
-					} else {
-						if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
-							add = false
-							continue
-						}
+					if noInSet {
+						continue
 					}
 				}
-				if add {
-					if seek == int64(0) {
-						count++
-						events = append(events, event)
+				for i := len(events.Events) - 1; i >= 0; i-- {
+					event := events.Events[i]
+					if len(t) == 0 {
+						if seek == int64(0) {
+							count++
+							eventsRet = append(eventsRet, *event)
+							continue
+						}
+						seek--
 						continue
 					}
-					seek--
+
+					add := true
+					for _, key := range keys {
+						if strings.TrimSpace(key) == "" {
+							continue
+						}
+
+						if strings.Contains(key, "<") {
+							split := strings.Split(key, "<")
+							if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+								add = false
+								continue
+							}
+							val := ""
+							for _, f := range event.Fields {
+								if split[0] == f.Key {
+									val = f.Value
+								}
+							}
+							i, err := strconv.Atoi(split[1])
+							if err != nil {
+								add = false
+								continue
+							}
+							i2, err := strconv.Atoi(val)
+							if err != nil {
+								add = false
+								continue
+							}
+							if i2 >= i {
+								add = false
+								continue
+							}
+
+						} else if strings.Contains(key, ">") {
+							split := strings.Split(key, ">")
+							if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+								add = false
+								continue
+							}
+							val := ""
+							for _, f := range event.Fields {
+								if split[0] == f.Key {
+									val = f.Value
+								}
+							}
+							i, err := strconv.Atoi(split[1])
+							if err != nil {
+								add = false
+								continue
+							}
+							i2, err := strconv.Atoi(val)
+							if err != nil {
+								add = false
+								continue
+							}
+							if i2 <= i {
+								add = false
+								continue
+							}
+
+						} else if key[:1] == "!" {
+							if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
+								add = false
+								break
+							}
+						} else {
+							if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+								add = false
+								continue
+							}
+						}
+					}
+					if add {
+						if seek == int64(0) {
+							count++
+							eventsRet = append(eventsRet, *event)
+							continue
+						}
+						seek--
+					}
 				}
 			}
 		}
@@ -294,5 +351,5 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ch <- events
+	ch <- eventsRet
 }
