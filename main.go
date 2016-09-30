@@ -94,7 +94,7 @@ func main() {
 	edit_box.quitSearch = make(chan bool)
 	go func() {
 		for {
-			time.Sleep(time.Millisecond * 100)
+			time.Sleep(time.Millisecond * 1000)
 			if edit_box.seek == int64(0) {
 				edit_box.Search()
 				redraw_all()
