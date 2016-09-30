@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/boltdb/bolt"
 	"sync"
-	"encoding/json"
 	"strings"
 )
 
@@ -279,7 +278,7 @@ var edit_box EditBox
 
 func insertNewlineAtIInString(in string, i int) (string, int) {
 	if i < 21 {
-		return  in, 0
+		return in, 0
 	}
 	split := strings.Split(in, "\n")
 	c := 0;
@@ -327,7 +326,7 @@ func redraw_all() {
 
 		i -= int(event.Lines)
 		previ = i
-		for index, r := range event.Ts{
+		for index, r := range event.Ts {
 			if i < h - 2 && i >= 0 {
 				termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
 			}
@@ -348,7 +347,7 @@ func redraw_all() {
 		}
 		ns := fmt.Sprintf("Source: %s", event.Path)
 		for ix, r := range ns {
-			termbox.SetCell(offset + ix, i+1, r, termbox.ColorCyan, coldef)
+			termbox.SetCell(offset + ix, i + 1, r, termbox.ColorCyan, coldef)
 		}
 
 	}
@@ -357,13 +356,13 @@ func redraw_all() {
 	db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Meta"))
 		by := b.Get([]byte("Meta"))
-		meta := Meta{}
-		json.Unmarshal(by, &meta)
+		var meta Meta
+		meta.Unmarshal(by)
 		nodecount = meta.Count
 		return nil
 	})
 
-	ns := fmt.Sprintf("Search: %s Events: %d",edit_box.stats,nodecount)
+	ns := fmt.Sprintf("Search: %s Events: %d", edit_box.stats, nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
 	}

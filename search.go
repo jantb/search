@@ -8,10 +8,8 @@ import (
 	"github.com/golang/leveldb/bloom"
 	"strings"
 	"os"
-	"encoding/json"
 	"strconv"
 )
-
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
 	for _, ev := range e.GetEvents() {
@@ -186,13 +184,14 @@ func tailFile(fileMonitor FileMonitor) {
 			b = tx.Bucket([]byte("Meta"))
 			by = b.Get([]byte("Meta"))
 			if by == nil {
-				b, _ := json.Marshal(Meta{})
+				var meta Meta
+				b, _ := meta.Marshal()
 				by = b
 			}
-			meta := Meta{}
-			json.Unmarshal(by, &meta)
+			var meta Meta
+			meta.Unmarshal(by)
 			meta.Count++
-			by, _ = json.Marshal(meta)
+			by, _ = meta.Marshal()
 			b.Put([]byte("Meta"), by)
 			return nil
 		})
