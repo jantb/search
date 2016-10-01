@@ -9,6 +9,7 @@ import (
 	"strings"
 	"os"
 	"strconv"
+	"github.com/bradfitz/slice"
 )
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
@@ -20,11 +21,22 @@ func (e *Events) Get(ts string, data string) (*Event, bool) {
 	return &Event{}, false
 }
 func (e *Events) RegenerateBloom() {
+	set := make(map[string]bool)
+
 	keys := [][]byte{}
 	for _, ev := range e.Events {
 		keys = append(keys, getBloomKeysFromLine(ev.Data)...)
 		keys = append(keys, getBloomKeysFromLine(ev.Path)...)
 	}
+	for _, key :=range keys{
+		set[string(key)] = true
+	}
+
+	keys = make([][]byte, 0, len(set))
+	for k := range set {
+		keys = append(keys, []byte(k))
+	}
+
 	e.Bloom = bloom.NewFilter(nil, keys, 10)
 }
 func tailFile(fileMonitor FileMonitor) {
@@ -167,6 +179,9 @@ func tailFile(fileMonitor FileMonitor) {
 				return nil
 			}
 			events.Events = append(events.Events, &event)
+			slice.Sort(events.Events, func(i, j int) bool {
+				return events.Events[i].Ts < events.Events[j].Ts
+			})
 			events.RegenerateBloom()
 			by, err := events.Marshal()
 			if err != nil {
