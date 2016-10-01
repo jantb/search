@@ -14,6 +14,7 @@ message Event {
     string path = 4;
     repeated Field fields = 5;
     string ts = 6;
+    bool bloom_dirty = 7;
 }
 message Field {
     string key = 1;
