@@ -168,7 +168,7 @@ func tailFile(fileMonitor FileMonitor) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			edit_box.stats1 = time.Now().Sub(td)
+			edit_box.storeLine = time.Now().Sub(td)
 			continue
 		}
 
@@ -234,7 +234,7 @@ func tailFile(fileMonitor FileMonitor) {
 			log.Fatal(err)
 		}
 
-		edit_box.stats1 = time.Now().Sub(td)
+		edit_box.storeLine = time.Now().Sub(td)
 	}
 	if err != nil {
 		log.Fatal(err)

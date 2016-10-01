@@ -86,7 +86,7 @@ type EditBox struct {
 	cursor_voffset int // visual cursor offset in termbox cells
 	cursor_coffset int // cursor offset in unicode code points
 	stats          time.Duration
-	stats1          time.Duration
+	storeLine      time.Duration
 }
 
 // Draws the EditBox in the given location, 'h' is not used at the moment
@@ -363,7 +363,7 @@ func redraw_all() {
 		return nil
 	})
 
-	ns := fmt.Sprintf("Stats1: %s Search: %s Events: %d", edit_box.stats1, edit_box.stats, nodecount)
+	ns := fmt.Sprintf("Parse line: %s Search: %s Events: %d", edit_box.storeLine, edit_box.stats, nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
 	}

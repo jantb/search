@@ -111,7 +111,6 @@ func main() {
 		}
 	}()
 
-	edit_box.Search()
 	mainloop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -153,6 +152,5 @@ func main() {
 		}
 		redraw_all()
 	}
-
 }
 
