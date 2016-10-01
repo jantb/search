@@ -21,23 +21,24 @@ func (e *Events) Get(ts string, data string) (*Event, bool) {
 	return &Event{}, false
 }
 func (e *Events) RegenerateBloom() {
+	t := time.Now()
+
 	set := make(map[string]bool)
 
-	keys := [][]byte{}
 	for _, ev := range e.Events {
-		keys = append(keys, getBloomKeysFromLine(ev.Data)...)
-		keys = append(keys, getBloomKeysFromLine(ev.Path)...)
+		for _, key := range getBloomKeysFromLine(ev.Data) {
+			set[string(key)] = true
+		}
+		for _, key := range getBloomKeysFromLine(ev.Path) {
+			set[string(key)] = true
+		}
 	}
-	for _, key :=range keys{
-		set[string(key)] = true
-	}
-
-	keys = make([][]byte, 0, len(set))
+	keys := make([][]byte, 0, len(set))
 	for k := range set {
 		keys = append(keys, []byte(k))
 	}
-
 	e.Bloom = bloom.NewFilter(nil, keys, 10)
+	edit_box.stats1 = time.Now().Sub(t)
 }
 func tailFile(fileMonitor FileMonitor) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
@@ -245,19 +246,27 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 				noInSet := false
 				if len(t) != 0 {
 					for _, key := range keys {
+						if strings.TrimSpace(key) == "" {
+							continue
+						}
 						if strings.Contains(key, "<") {
 							split := strings.Split(key, "<")
 							if !bloom.Filter(events.Bloom).MayContain([]byte(split[0])) {
+								noInSet = true
 								continue
 							}
-						}
-						if strings.Contains(key, ">") {
+						} else if strings.Contains(key, ">") {
 							split := strings.Split(key, ">")
 							if !bloom.Filter(events.Bloom).MayContain([]byte(split[0])) {
+								noInSet = true
 								continue
 							}
-						}
-						if !bloom.Filter(events.Bloom).MayContain([]byte(key)) {
+						} else if key[:1] == "!" {
+							if bloom.Filter(events.Bloom).MayContain([]byte(key[1:])) {
+								noInSet = true
+								break
+							}
+						} else if !bloom.Filter(events.Bloom).MayContain([]byte(key)) {
 							noInSet = true
 							break
 						}
