@@ -5,6 +5,7 @@ package main;
 message Events {
     bytes bloom = 1;
     repeated Event events = 2;
+    bool bloom_dirty = 3;
 }
 message Event {
     bytes bloom = 1;

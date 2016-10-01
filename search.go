@@ -20,9 +20,12 @@ func (e *Events) Get(ts string, data string) (*Event, bool) {
 	}
 	return &Event{}, false
 }
+func (e *Events) sortEvents() {
+	slice.Sort(e.Events, func(i, j int) bool {
+		return e.Events[i].Ts < e.Events[j].Ts
+	})
+}
 func (e *Events) RegenerateBloom() {
-	t := time.Now()
-
 	set := make(map[string]bool)
 
 	for _, ev := range e.Events {
@@ -37,8 +40,53 @@ func (e *Events) RegenerateBloom() {
 	for k := range set {
 		keys = append(keys, []byte(k))
 	}
+
 	e.Bloom = bloom.NewFilter(nil, keys, 10)
-	edit_box.stats1 = time.Now().Sub(t)
+}
+func (e *Event) GenerateBloom() {
+	set := make(map[string]bool)
+	for _, key := range getBloomKeysFromLine(e.Data) {
+		set[string(key)] = true
+		if strings.ContainsRune(string(key), '=') {
+			split := strings.Split(string(key), "=")
+			set[string(split[0])] = true
+			set[string(split[1])] = true
+		}
+	}
+	for _, key := range getBloomKeysFromLine(e.Path) {
+		set[string(key)] = true
+	}
+	keys := make([][]byte, 0, len(set))
+	for k := range set {
+		keys = append(keys, []byte(k))
+	}
+	e.Bloom = bloom.NewFilter(nil, keys, 10)
+}
+
+var formats = []string{"2006/01/02 15:04:05",
+	"2006-01-02 15:04:05.000",
+	time.ANSIC,
+	time.UnixDate,
+	time.RubyDate,
+	time.RFC822,
+	time.RFC822Z,
+	time.RFC850,
+	time.RFC1123,
+	time.RFC1123Z,
+	time.RFC3339,
+	time.RFC3339Nano}
+
+func findFormat(text string) string {
+	for _, format := range formats {
+		if len(text) >= len(format) {
+			_, err := time.Parse(format, text[:len(format)])
+			if err != nil {
+				continue
+			}
+			return format
+		}
+	}
+	return ""
 }
 func tailFile(fileMonitor FileMonitor) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
@@ -49,45 +97,27 @@ func tailFile(fileMonitor FileMonitor) {
 	var key []byte
 	var prevData string
 	var prevTs string
-	formats := []string{"2006/01/02 15:04:05",
-		"2006-01-02 15:04:05.000",
-		time.ANSIC,
-		time.UnixDate,
-		time.RubyDate,
-		time.RFC822,
-		time.RFC822Z,
-		time.RFC850,
-		time.RFC1123,
-		time.RFC1123Z,
-		time.RFC3339,
-		time.RFC3339Nano}
+
 	f := ""
 	prevo := int64(0)
 	stopo := int64(0)
 	for line := range t.Lines {
-		var ok int
+
 		var tt time.Time
 		text := line.Text
-
 		if f == "" {
-			for _, format := range formats {
-				if len(text) >= len(format) {
-					_, err := time.Parse(format, text[:len(format)])
-					if err != nil {
-						continue
-					}
-					f = format
-				}
-			}
-			if f == "" {
-				continue
-			}
+			f = findFormat(text)
 		}
+		if f == "" {
+			continue
+		}
+		var ok int
 		if len(text) > len(f) {
 			ti, err := time.Parse(f, text[:len(f)])
 			if err != nil {
 				ok = -1
 			}
+			// New event found
 			if ok == 0 {
 				ok = 1
 				tt = ti
@@ -100,6 +130,10 @@ func tailFile(fileMonitor FileMonitor) {
 			log.Fatal(err)
 		}
 		prevo = o
+
+
+
+		// Multiline entry add to last timestamp
 		if ok == -1 || ok == 0 {
 			err = db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte("Events"))
@@ -115,21 +149,9 @@ func tailFile(fileMonitor FileMonitor) {
 				event, _ := events.Get(prevTs, prevData)
 				event.Data += "\n" + text
 				prevData = event.Data
-				keys := getBloomKeysFromLine(event.Data)
-				keys = append(keys, getBloomKeysFromLine(fileMonitor.Path)...)
-				fields := [][]byte{}
-				for _, key := range keys {
-					if strings.ContainsRune(string(key), '=') {
-						split := strings.Split(string(key), "=")
-						event.Fields = append(event.Fields, &Field{Key:split[0], Value:split[1]})
-						fields = append(fields, []byte(split[0]))
-						fields = append(fields, []byte(split[1]))
-					}
-				}
-
-				keys = append(keys, fields...)
-				event.Bloom = bloom.NewFilter(nil, keys, 10)
+				event.GenerateBloom()
 				event.Lines += 1
+				events.BloomDirty = true
 				by, err = events.Marshal()
 				if err != nil {
 					log.Fatal(err)
@@ -175,15 +197,18 @@ func tailFile(fileMonitor FileMonitor) {
 			}
 			var events Events
 			events.Unmarshal(eventsb)
+
 			_, found := events.Get(event.Ts, event.Data)
 			if found {
 				return nil
 			}
+
 			events.Events = append(events.Events, &event)
-			slice.Sort(events.Events, func(i, j int) bool {
-				return events.Events[i].Ts < events.Events[j].Ts
-			})
-			events.RegenerateBloom()
+			events.sortEvents()
+
+			td := time.Now()
+			edit_box.stats1 = time.Now().Sub(td)
+			events.BloomDirty = true
 			by, err := events.Marshal()
 			if err != nil {
 				log.Panic(err)
@@ -220,6 +245,62 @@ func tailFile(fileMonitor FileMonitor) {
 		log.Fatal(err)
 	}
 }
+
+func regenerateBloom(k []byte) {
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Events"))
+		by := b.Get(k)
+		var e Events
+		err := e.Unmarshal(by)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if e.BloomDirty {
+			e.RegenerateBloom()
+			e.BloomDirty = false
+			by, err = e.Marshal()
+			if err != nil {
+				log.Fatal(err)
+			}
+			b.Put(k, by)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte)bool{
+	noInSet := false
+	for _, key := range keys {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
+		if strings.Contains(key, "<") {
+			split := strings.Split(key, "<")
+			if !bloom.Filter(bloomArray).MayContain([]byte(split[0])) {
+				noInSet = true
+				continue
+			}
+		} else if strings.Contains(key, ">") {
+			split := strings.Split(key, ">")
+			if !bloom.Filter(bloomArray).MayContain([]byte(split[0])) {
+				noInSet = true
+				continue
+			}
+		} else if key[:1] == "!" {
+			if bloom.Filter(bloomArray).MayContain([]byte(key[1:])) {
+				noInSet = true
+				break
+			}
+		} else if !bloom.Filter(bloomArray).MayContain([]byte(key)) {
+			noInSet = true
+			break
+		}
+	}
+	return noInSet
+}
+
 func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	mutex2.Lock()
 	defer mutex2.Unlock()
@@ -242,37 +323,15 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 				if err != nil {
 					log.Fatal(err)
 				}
+
 				keys := strings.Split(string(t), " ")
-				noInSet := false
-				if len(t) != 0 {
-					for _, key := range keys {
-						if strings.TrimSpace(key) == "" {
+				if events.BloomDirty {
+					go regenerateBloom(k);
+				} else {
+					if len(t) != 0 {
+						if shouldNotContinueBasedOnBucketFilter(keys, events.Bloom) {
 							continue
 						}
-						if strings.Contains(key, "<") {
-							split := strings.Split(key, "<")
-							if !bloom.Filter(events.Bloom).MayContain([]byte(split[0])) {
-								noInSet = true
-								continue
-							}
-						} else if strings.Contains(key, ">") {
-							split := strings.Split(key, ">")
-							if !bloom.Filter(events.Bloom).MayContain([]byte(split[0])) {
-								noInSet = true
-								continue
-							}
-						} else if key[:1] == "!" {
-							if bloom.Filter(events.Bloom).MayContain([]byte(key[1:])) {
-								noInSet = true
-								break
-							}
-						} else if !bloom.Filter(events.Bloom).MayContain([]byte(key)) {
-							noInSet = true
-							break
-						}
-					}
-					if noInSet {
-						continue
 					}
 				}
 				for i := len(events.Events) - 1; i >= 0; i-- {
