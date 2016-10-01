@@ -87,6 +87,7 @@ type EditBox struct {
 	cursor_coffset int // cursor offset in unicode code points
 	stats          time.Duration
 	storeLine      time.Duration
+	count          int
 }
 
 // Draws the EditBox in the given location, 'h' is not used at the moment
@@ -362,8 +363,11 @@ func redraw_all() {
 		nodecount = meta.Count
 		return nil
 	})
-
-	ns := fmt.Sprintf("Parse line: %s Search: %s Events: %d", edit_box.storeLine, edit_box.stats, nodecount)
+	count := ""
+	if edit_box.count > 0 {
+		count = fmt.Sprintf("Count: %d", edit_box.count)
+	}
+	ns := fmt.Sprintf("%s Parse line: %s Search: %s Events: %d", count, edit_box.storeLine, edit_box.stats, nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
 	}

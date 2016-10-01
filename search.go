@@ -325,6 +325,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	ttt := time.Now()
 	var eventsRet []Event
 	count := 0
+	edit_box.count = 0
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		c := b.Cursor()
@@ -342,7 +343,9 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 					log.Fatal(err)
 				}
 
-				keys := strings.Split(string(t), " ")
+				search := strings.Split(string(t), "|")
+				keys := strings.Split(search[0], " ")
+				search = search[1:]
 				if events.BloomDirty {
 					go regenerateBloom(k);
 				} else {
@@ -450,6 +453,12 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 					}
 					if add {
 						if seek == int64(0) {
+							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
+								edit_box.count++
+								if count == s - 1 {
+									continue
+								}
+							}
 							count++
 							eventsRet = append(eventsRet, *event)
 							continue
