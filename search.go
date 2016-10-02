@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"github.com/bradfitz/slice"
+	"encoding/binary"
 )
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
@@ -91,6 +92,12 @@ func findFormat(text string) string {
 		}
 	}
 	return ""
+}
+
+func int64timeToByte(i int64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(i))
+	return b
 }
 func tailFile(fileMonitor FileMonitor) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
@@ -179,7 +186,7 @@ func tailFile(fileMonitor FileMonitor) {
 			BloomDirty:true,
 		}
 
-		key = []byte(tt.Truncate(1 * time.Minute).Format(time.RFC3339))
+		key = int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
 		prevData = event.Data
 		prevTs = event.Ts
 		err = db.Update(func(tx *bolt.Tx) error {
@@ -359,14 +366,13 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 					event := events.Events[i]
 					if len(t) == 0 {
 						if seek == int64(0) {
-							count++
+							count+=int64(event.Lines)+int64(1)
 							eventRes := EventRes{Data:event.Data,
 								Lines: event.Lines,
 								Fields:event.Fields,
 								Ts: event.Ts,
 								Path: event.Path,
 							}
-							searchRes.Count = count
 							searchRes.Events = append(searchRes.Events, &eventRes)
 							continue
 						}
@@ -470,12 +476,12 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 					if add {
 						if seek == int64(0) {
 							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
-								edit_box.count++
+								searchRes.Count++
 								if count == int64(s) - 1 {
 									continue
 								}
 							}
-							count++
+							count+=int64(event.Lines)+int64(1)
 							eventRes := EventRes{Data:event.Data,
 								Lines: event.Lines,
 								Fields:event.Fields,
@@ -484,7 +490,6 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 								Path: event.Path,
 							}
 
-							searchRes.Count = count
 							searchRes.Events = append(searchRes.Events, &eventRes)
 							continue
 						}
