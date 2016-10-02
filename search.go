@@ -68,7 +68,7 @@ func (e *Event) GenerateBloom() {
 	}
 }
 
-func (event *Event) shouldAddAndGetIndexes(parentKey []byte, index int, keys string) (bool) {
+func (event *Event) shouldAddAndGetIndexes(parentKey []byte, index int, keys []string) (bool) {
 	add := true
 	for _, key := range keys {
 		if strings.TrimSpace(key) == "" {
