@@ -27,7 +27,22 @@ message FileMonitor {
 }
 
 message Meta {
-    int64 count =1;
+    int64 count = 1;
 }
+message EventRes {
+    string data = 1;
+    int32 lines = 2;
+    repeated Field fields = 3;
+    repeated int32 foundAtIndex = 4;
+    string ts = 5;
+    string path = 6;
+}
+
+message SearchRes {
+    int64 count = 1;
+    repeated EventRes events = 2;
+    string ts = 3;
+}
+
 
 

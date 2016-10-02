@@ -76,18 +76,18 @@ const preferred_horizontal_threshold = 5
 const tabstop_length = 8
 
 type EditBox struct {
-	events         []Event
+	events         []*EventRes
 	text           []byte
 	seek           int64
 	line_voffset   int
-	eventChan      chan []Event
+	eventChan      chan SearchRes
 	quitSearch     chan bool
 	cursor_boffset int // cursor offset in bytes
 	cursor_voffset int // visual cursor offset in termbox cells
 	cursor_coffset int // cursor offset in unicode code points
-	stats          time.Duration
+	stats          string
 	storeLine      time.Duration
-	count          int
+	count          int64
 }
 
 // Draws the EditBox in the given location, 'h' is not used at the moment
@@ -345,6 +345,13 @@ func redraw_all() {
 			if i < h - 2 && i >= 0 {
 				x := ir + offset - pastOffset
 				termbox.SetCell(x, i, r, coldef, coldef)
+
+				for h := 0; h < len(event.FoundAtIndex); h += 2 {
+					if int32(ir) >= event.FoundAtIndex[h]&& int32(ir) < event.FoundAtIndex[h + 1] {
+						termbox.SetCell(x, i, r, coldef, termbox.ColorRed)
+					}
+				}
+
 			}
 		}
 		ns := fmt.Sprintf("Source: %s", event.Path)

@@ -93,7 +93,7 @@ func main() {
 	}
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
-	edit_box.eventChan = make(chan []Event)
+	edit_box.eventChan = make(chan SearchRes)
 	edit_box.quitSearch = make(chan bool)
 	go func() {
 		for {
@@ -104,8 +104,12 @@ func main() {
 		}
 	}()
 	go func() {
+		var searchRes SearchRes
 		for {
-			edit_box.events = <-edit_box.eventChan
+			searchRes = <-edit_box.eventChan
+			edit_box.count = searchRes.Count
+			edit_box.stats = searchRes.Ts
+			edit_box.events = searchRes.Events
 			redraw_all()
 		}
 	}()

@@ -319,19 +319,19 @@ func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool
 	return noInSet
 }
 
-func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
+func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 	mutex2.Lock()
 	defer mutex2.Unlock()
 	ttt := time.Now()
-	var eventsRet []Event
-	count := 0
+	var searchRes SearchRes
+	count := int64(0)
 	edit_box.count = 0
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		c := b.Cursor()
 		k, v := c.Last()
 
-		for ; k != nil && count < s; k, v = c.Prev() {
+		for ; k != nil && count < int64(s); k, v = c.Prev() {
 			select {
 			case <-quit:
 				return nil
@@ -360,7 +360,14 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 					if len(t) == 0 {
 						if seek == int64(0) {
 							count++
-							eventsRet = append(eventsRet, *event)
+							eventRes := EventRes{Data:event.Data,
+								Lines: event.Lines,
+								Fields:event.Fields,
+								Ts: event.Ts,
+								Path: event.Path,
+							}
+							searchRes.Count = count
+							searchRes.Events = append(searchRes.Events, &eventRes)
 							continue
 						}
 						seek--
@@ -368,6 +375,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 					}
 
 					add := true
+					var keyIndexes []int32
 					for _, key := range keys {
 						if strings.TrimSpace(key) == "" {
 							continue
@@ -444,23 +452,40 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 								add = false
 								break
 							}
-						} else {
-							if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
-								add = false
-								continue
-							}
+						} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+							add = false
+							continue
+						}
+						index := strings.Index(event.Data, key)
+						text := event.Data
+						indexPrev := 0
+						for ; index != -1; index = strings.Index(text[indexPrev:], key) {
+							index += indexPrev
+							keyIndexes = append(keyIndexes, int32(index))
+							index += len(key)
+							keyIndexes = append(keyIndexes, int32(index))
+							indexPrev = index
 						}
 					}
 					if add {
 						if seek == int64(0) {
 							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 								edit_box.count++
-								if count == s - 1 {
+								if count == int64(s) - 1 {
 									continue
 								}
 							}
 							count++
-							eventsRet = append(eventsRet, *event)
+							eventRes := EventRes{Data:event.Data,
+								Lines: event.Lines,
+								Fields:event.Fields,
+								FoundAtIndex: keyIndexes,
+								Ts: event.Ts,
+								Path: event.Path,
+							}
+
+							searchRes.Count = count
+							searchRes.Events = append(searchRes.Events, &eventRes)
 							continue
 						}
 						seek--
@@ -474,6 +499,6 @@ func SearchFor(t []byte, s int, seek int64, ch chan []Event, quit chan bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	edit_box.stats = time.Now().Sub(ttt)
-	ch <- eventsRet
+	searchRes.Ts = time.Now().Sub(ttt).String()
+	ch <- searchRes
 }
