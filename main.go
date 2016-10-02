@@ -99,7 +99,7 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(time.Millisecond * 1000)
-			if edit_box.seek == int64(0) {
+			if edit_box.Seek() == int64(0) {
 				edit_box.Search()
 			}
 		}
@@ -158,7 +158,6 @@ func main() {
 		case termbox.EventError:
 			panic(ev.Err)
 		}
-		redraw_all()
 	}
 }
 

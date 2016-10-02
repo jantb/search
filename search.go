@@ -68,14 +68,13 @@ func (e *Event) GenerateBloom() {
 	}
 }
 
-func (event *Event) shouldAddAndGetIndexes(parentKey []byte, index int, keys []string) (bool) {
+func (event *Event) shouldAddAndGetIndexes(keys []string) (bool) {
 	add := true
 	for _, key := range keys {
 		if strings.TrimSpace(key) == "" {
 			continue
 		}
 		if event.BloomDirty {
-			go eventRegenBloom(parentKey, index)
 			if key[:1] == "!" {
 				if strings.Contains(event.Data, key[1:]) {
 					add = false
@@ -154,9 +153,12 @@ func (event *Event) shouldAddAndGetIndexes(parentKey []byte, index int, keys []s
 	return add
 }
 
-func (event Event) GetKeyIndexes(keys []string) []int32{
+func (event Event) GetKeyIndexes(keys []string) []int32 {
 	var keyIndexes []int32
 	for _, key := range keys {
+		if key == "" {
+			continue
+		}
 		index := strings.Index(event.Data, key)
 		text := event.Data
 		indexPrev := 0
@@ -482,7 +484,11 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 						seek--
 						continue
 					}
-					add := event.shouldAddAndGetIndexes(k, i, keys)
+					if event.BloomDirty {
+						go eventRegenBloom(k, i)
+					}
+
+					add := event.shouldAddAndGetIndexes(keys)
 					if add {
 						if seek == int64(0) {
 							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {

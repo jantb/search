@@ -90,6 +90,29 @@ type EditBox struct {
 	count          int64
 }
 
+func (eb EditBox) Seek() int64 {
+	mutex.Lock()
+	defer mutex.Unlock()
+	return eb.seek
+}
+func (eb *EditBox) SeekSet(seek int64) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	eb.seek = seek
+}
+
+func (eb *EditBox) SeekInc() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	eb.seek++
+}
+func (eb *EditBox) SeekDec() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if eb.seek > 0 {
+		eb.seek--
+	}
+}
 // Draws the EditBox in the given location, 'h' is not used at the moment
 func (eb *EditBox) Draw(x, y, w, h int) {
 	eb.AdjustVOffset(w)
@@ -238,24 +261,17 @@ func (eb *EditBox) InsertRune(r rune) {
 }
 
 func (eb *EditBox) ScrollUp() {
-	mutex.Lock()
-	eb.seek++
-	mutex.Unlock()
+	eb.SeekInc()
 	eb.Search()
 }
 
 func (eb *EditBox) ScrollDown() {
-	mutex.Lock()
-	if eb.seek > 0 {
-		eb.seek--
-	}
-	mutex.Unlock()
-
+	eb.SeekDec()
 	eb.Search()
 }
 func (eb *EditBox) Follow() {
 	mutex.Lock()
-	eb.seek = int64(0)
+	eb.SeekSet(int64(0))
 	mutex.Unlock()
 
 	eb.Search()
@@ -267,7 +283,7 @@ func (eb *EditBox) Search() {
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
 	mutex.Unlock()
-	go SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch)
+	go SearchFor(eb.text, h - 2, eb.Seek(), eb.eventChan, eb.quitSearch)
 }
 
 // Please, keep in mind that cursor depends on the value of line_voffset, which
@@ -304,6 +320,7 @@ func insertNewlineAtIInString(in string, i int) (string, int) {
 
 func redraw_all() {
 	mutex.Lock()
+	defer mutex.Unlock()
 	const coldef = termbox.ColorDefault
 	termbox.Clear(coldef, coldef)
 	w, h := termbox.Size()
@@ -380,6 +397,5 @@ func redraw_all() {
 	}
 	termbox.Flush()
 
-	mutex.Unlock()
 }
 
