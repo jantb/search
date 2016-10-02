@@ -204,7 +204,7 @@ func int64timeToByte(i int64) []byte {
 	binary.BigEndian.PutUint64(b, uint64(i))
 	return b
 }
-func tailFile(fileMonitor FileMonitor) {
+func tailFile(fileMonitor FileMonitor, edit_box *EditBox ) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
 		ReOpen:true,
 		Poll: fileMonitor.Poll,
@@ -280,7 +280,9 @@ func tailFile(fileMonitor FileMonitor) {
 			if err != nil {
 				log.Fatal(err)
 			}
+			edit_box.Lock()
 			edit_box.storeLine = time.Now().Sub(td)
+			edit_box.Unlock()
 			continue
 		}
 
@@ -345,8 +347,9 @@ func tailFile(fileMonitor FileMonitor) {
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		edit_box.Lock()
 		edit_box.storeLine = time.Now().Sub(td)
+		edit_box.Unlock()
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -437,7 +440,6 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 	ttt := time.Now()
 	var searchRes SearchRes
 	count := int64(0)
-	edit_box.count = 0
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		c := b.Cursor()

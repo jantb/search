@@ -14,13 +14,6 @@ import (
 var mutex = &sync.Mutex{}
 var mutex2 = &sync.Mutex{}
 
-func tbprint(x, y int, fg, bg termbox.Attribute, msg string) {
-	for _, c := range msg {
-		termbox.SetCell(x, y, c, fg, bg)
-		x += runewidth.RuneWidth(c)
-	}
-}
-
 func fill(x, y, w, h int, cell termbox.Cell) {
 	for ly := 0; ly < h; ly++ {
 		for lx := 0; lx < w; lx++ {
@@ -76,6 +69,7 @@ const preferred_horizontal_threshold = 5
 const tabstop_length = 8
 
 type EditBox struct {
+	sync.Mutex
 	events         []*EventRes
 	text           []byte
 	seek           int64
@@ -91,24 +85,16 @@ type EditBox struct {
 }
 
 func (eb EditBox) Seek() int64 {
-	mutex.Lock()
-	defer mutex.Unlock()
 	return eb.seek
 }
 func (eb *EditBox) SeekSet(seek int64) {
-	mutex.Lock()
-	defer mutex.Unlock()
 	eb.seek = seek
 }
 
 func (eb *EditBox) SeekInc() {
-	mutex.Lock()
-	defer mutex.Unlock()
 	eb.seek++
 }
 func (eb *EditBox) SeekDec() {
-	mutex.Lock()
-	defer mutex.Unlock()
 	if eb.seek > 0 {
 		eb.seek--
 	}
@@ -256,8 +242,8 @@ func (eb *EditBox) InsertRune(r rune) {
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	eb.text = byte_slice_insert(eb.text, eb.cursor_boffset, buf[:n])
-	go eb.Search()
 	eb.MoveCursorOneRuneForward()
+	eb.Search()
 }
 
 func (eb *EditBox) ScrollUp() {
@@ -270,20 +256,22 @@ func (eb *EditBox) ScrollDown() {
 	eb.Search()
 }
 func (eb *EditBox) Follow() {
-	mutex.Lock()
 	eb.SeekSet(int64(0))
-	mutex.Unlock()
-
 	eb.Search()
 }
+func New() *EditBox {
+	return &EditBox{
 
+	}
+}
 func (eb *EditBox) Search() {
 	_, h := termbox.Size()
 	mutex.Lock()
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
-	mutex.Unlock()
+	eb.count = 0
 	go SearchFor(eb.text, h - 2, eb.Seek(), eb.eventChan, eb.quitSearch)
+	mutex.Unlock()
 }
 
 // Please, keep in mind that cursor depends on the value of line_voffset, which
@@ -292,7 +280,7 @@ func (eb *EditBox) CursorX() int {
 	return eb.cursor_voffset - eb.line_voffset
 }
 
-var edit_box EditBox
+
 
 func insertNewlineAtIInString(in string, i int) (string, int) {
 	if i < 21 {
@@ -318,9 +306,9 @@ func insertNewlineAtIInString(in string, i int) (string, int) {
 	return strings.Join(split, "\n"), c
 }
 
-func redraw_all() {
-	mutex.Lock()
-	defer mutex.Unlock()
+func redraw_all(edit_box EditBox) {
+	edit_box.Lock()
+	defer edit_box.Unlock()
 	const coldef = termbox.ColorDefault
 	termbox.Clear(coldef, coldef)
 	w, h := termbox.Size()
