@@ -68,6 +68,109 @@ func (e *Event) GenerateBloom() {
 	}
 }
 
+func (event *Event) shouldAddAndGetIndexes(parentKey []byte, index int, keys string) (bool) {
+	add := true
+	for _, key := range keys {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
+		if event.BloomDirty {
+			go eventRegenBloom(parentKey, index)
+			if key[:1] == "!" {
+				if strings.Contains(event.Data, key[1:]) {
+					add = false
+					break
+				}
+			} else {
+				if !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+					add = false
+					continue
+				}
+			}
+		} else if strings.Contains(key, "<") {
+			split := strings.Split(key, "<")
+			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+				add = false
+				continue
+			}
+			val := ""
+			for _, f := range event.Fields {
+				if split[0] == f.Key {
+					val = f.Value
+				}
+			}
+			i, err := strconv.Atoi(split[1])
+			if err != nil {
+				add = false
+				continue
+			}
+			i2, err := strconv.Atoi(val)
+			if err != nil {
+				add = false
+				continue
+			}
+			if i2 >= i {
+				add = false
+				continue
+			}
+
+		} else if strings.Contains(key, ">") {
+			split := strings.Split(key, ">")
+			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+				add = false
+				continue
+			}
+			val := ""
+			for _, f := range event.Fields {
+				if split[0] == f.Key {
+					val = f.Value
+				}
+			}
+			i, err := strconv.Atoi(split[1])
+			if err != nil {
+				add = false
+				continue
+			}
+			i2, err := strconv.Atoi(val)
+			if err != nil {
+				add = false
+				continue
+			}
+			if i2 <= i {
+				add = false
+				continue
+			}
+
+		} else if key[:1] == "!" {
+			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
+				add = false
+				break
+			}
+		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+			add = false
+			continue
+		}
+	}
+	return add
+}
+
+func (event Event) GetKeyIndexes(keys []string) []int32{
+	var keyIndexes []int32
+	for _, key := range keys {
+		index := strings.Index(event.Data, key)
+		text := event.Data
+		indexPrev := 0
+		for ; index != -1; index = strings.Index(text[indexPrev:], key) {
+			index += indexPrev
+			keyIndexes = append(keyIndexes, int32(index))
+			index += len(key)
+			keyIndexes = append(keyIndexes, int32(index))
+			indexPrev = index
+		}
+	}
+	return keyIndexes
+}
+
 var formats = []string{"2006/01/02 15:04:05",
 	"2006-01-02 15:04:05.000",
 	time.ANSIC,
@@ -366,7 +469,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 					event := events.Events[i]
 					if len(t) == 0 {
 						if seek == int64(0) {
-							count+=int64(event.Lines)+int64(1)
+							count += int64(event.Lines) + int64(1)
 							eventRes := EventRes{Data:event.Data,
 								Lines: event.Lines,
 								Fields:event.Fields,
@@ -379,100 +482,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 						seek--
 						continue
 					}
-
-					add := true
-					var keyIndexes []int32
-					for _, key := range keys {
-						if strings.TrimSpace(key) == "" {
-							continue
-						}
-						if event.BloomDirty {
-							go eventRegenBloom(k, i)
-							if key[:1] == "!" {
-								if strings.Contains(event.Data, key[1:]) {
-									add = false
-									break
-								}
-							} else {
-								if !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
-									add = false
-									continue
-								}
-							}
-						} else if strings.Contains(key, "<") {
-							split := strings.Split(key, "<")
-							if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-								add = false
-								continue
-							}
-							val := ""
-							for _, f := range event.Fields {
-								if split[0] == f.Key {
-									val = f.Value
-								}
-							}
-							i, err := strconv.Atoi(split[1])
-							if err != nil {
-								add = false
-								continue
-							}
-							i2, err := strconv.Atoi(val)
-							if err != nil {
-								add = false
-								continue
-							}
-							if i2 >= i {
-								add = false
-								continue
-							}
-
-						} else if strings.Contains(key, ">") {
-							split := strings.Split(key, ">")
-							if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-								add = false
-								continue
-							}
-							val := ""
-							for _, f := range event.Fields {
-								if split[0] == f.Key {
-									val = f.Value
-								}
-							}
-							i, err := strconv.Atoi(split[1])
-							if err != nil {
-								add = false
-								continue
-							}
-							i2, err := strconv.Atoi(val)
-							if err != nil {
-								add = false
-								continue
-							}
-							if i2 <= i {
-								add = false
-								continue
-							}
-
-						} else if key[:1] == "!" {
-							if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
-								add = false
-								break
-							}
-						} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
-							add = false
-							continue
-						}
-						index := strings.Index(event.Data, key)
-						text := event.Data
-						indexPrev := 0
-						for ; index != -1; index = strings.Index(text[indexPrev:], key) {
-							index += indexPrev
-							keyIndexes = append(keyIndexes, int32(index))
-							index += len(key)
-							keyIndexes = append(keyIndexes, int32(index))
-							indexPrev = index
-						}
-					}
+					add := event.shouldAddAndGetIndexes(k, i, keys)
 					if add {
 						if seek == int64(0) {
 							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
@@ -481,11 +491,11 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 									continue
 								}
 							}
-							count+=int64(event.Lines)+int64(1)
+							count += int64(event.Lines) + int64(1)
 							eventRes := EventRes{Data:event.Data,
 								Lines: event.Lines,
 								Fields:event.Fields,
-								FoundAtIndex: keyIndexes,
+								FoundAtIndex: event.GetKeyIndexes(keys),
 								Ts: event.Ts,
 								Path: event.Path,
 							}
