@@ -12,9 +12,6 @@ import (
 	"search/searchfor"
 )
 
-var mutex = &sync.Mutex{}
-var mutex2 = &sync.Mutex{}
-var eb_chan chan chan EditBox = make(chan chan EditBox)
 
 func fill(x, y, w, h int, cell termbox.Cell) {
 	for ly := 0; ly < h; ly++ {
@@ -71,7 +68,7 @@ const preferred_horizontal_threshold = 5
 const tabstop_length = 8
 
 type EditBox struct {
-	sync.Mutex
+	mtx sync.Mutex
 	events         []*proto.EventRes
 	text           []byte
 	seek           int64
@@ -89,13 +86,19 @@ func (eb EditBox) Seek() int64 {
 	return eb.seek
 }
 func (eb *EditBox) SeekSet(seek int64) {
+	eb.mtx.Lock()
+	defer eb.mtx.Unlock()
 	eb.seek = seek
 }
 
 func (eb *EditBox) SeekInc() {
+	eb.mtx.Lock()
+	defer eb.mtx.Unlock()
 	eb.seek++
 }
 func (eb *EditBox) SeekDec() {
+	eb.mtx.Lock()
+	defer eb.mtx.Unlock()
 	if eb.seek > 0 {
 		eb.seek--
 	}
@@ -226,24 +229,30 @@ func (eb *EditBox) DeleteRuneBackward() {
 }
 
 func (eb *EditBox) DeleteRuneForward() {
+	eb.mtx.Lock()
 	if eb.cursor_boffset == len(eb.text) {
 		return
 	}
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
+	eb.mtx.Unlock()
 	eb.Search()
 }
 
 func (eb *EditBox) DeleteTheRestOfTheLine() {
+	eb.mtx.Lock()
 	eb.text = eb.text[:eb.cursor_boffset]
+	eb.mtx.Unlock()
 	eb.Search()
 }
 
 func (eb *EditBox) InsertRune(r rune) {
+	eb.mtx.Lock()
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	eb.text = byte_slice_insert(eb.text, eb.cursor_boffset, buf[:n])
 	eb.MoveCursorOneRuneForward()
+	eb.mtx.Unlock()
 	eb.Search()
 }
 
@@ -267,12 +276,12 @@ func New() *EditBox {
 }
 func (eb *EditBox) Search() {
 	_, h := termbox.Size()
-	mutex.Lock()
+	eb.mtx.Lock()
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
 	eb.count = 0
-	go searchfor.SearchFor(eb.text, h - 2, eb.Seek(), eb.eventChan, eb.quitSearch, db)
-	mutex.Unlock()
+	go searchfor.SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch, db)
+	eb.mtx.Unlock()
 }
 
 // Please, keep in mind that cursor depends on the value of line_voffset, which
@@ -306,8 +315,6 @@ func insertNewlineAtIInString(in string, i int) (string, int) {
 }
 
 func redraw_all(edit_box EditBox) {
-	edit_box.Lock()
-	defer edit_box.Unlock()
 	const coldef = termbox.ColorDefault
 	termbox.Clear(coldef, coldef)
 	w, h := termbox.Size()

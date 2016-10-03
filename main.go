@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"search/proto"
 	"search/tail"
+	"sync/atomic"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -78,10 +79,8 @@ func main() {
 	}
 
 	edit_box := New()
-	edit_box.Lock()
 	edit_box.eventChan = make(chan proto.SearchRes)
 	edit_box.quitSearch = make(chan bool)
-	edit_box.Unlock()
 
 	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Files"))
@@ -103,29 +102,26 @@ func main() {
 	}
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
-
-	go func() {
+	go func(e *EditBox) {
 		for {
 			time.Sleep(time.Millisecond * 1000)
-			edit_box.Lock()
-			if edit_box.Seek() == int64(0) {
-				edit_box.Search()
+			if atomic.LoadInt64(&edit_box.seek) == int64(0) {
+				e.Search()
 			}
-			edit_box.Unlock()
 		}
-	}()
-	go func() {
+	}(edit_box)
+	go func(edit_box *EditBox) {
 		var searchRes proto.SearchRes
 		for {
 			searchRes = <-edit_box.eventChan
-			edit_box.Lock()
+			edit_box.mtx.Lock()
 			edit_box.count = searchRes.Count
 			edit_box.stats = searchRes.Ts
 			edit_box.events = searchRes.Events
-			edit_box.Unlock()
+			edit_box.mtx.Unlock()
 			redraw_all(*edit_box)
 		}
-	}()
+	}(edit_box)
 
 	mainloop:
 	for {
@@ -135,66 +131,36 @@ func main() {
 			case termbox.KeyEsc:
 				break mainloop
 			case termbox.KeyArrowLeft, termbox.KeyCtrlB:
-				edit_box.Lock()
 				edit_box.MoveCursorOneRuneBackward()
-				edit_box.Unlock()
 			case termbox.KeyArrowRight, termbox.KeyCtrlF:
-				edit_box.Lock()
 				edit_box.MoveCursorOneRuneForward()
-				edit_box.Unlock()
 			case termbox.KeyBackspace, termbox.KeyBackspace2:
-				edit_box.Lock()
 				edit_box.DeleteRuneBackward()
-				edit_box.Unlock()
 			case termbox.KeyDelete, termbox.KeyCtrlD:
-				edit_box.Lock()
 				edit_box.DeleteRuneForward()
-				edit_box.Unlock()
 			case termbox.KeyTab:
-				edit_box.Lock()
 				edit_box.InsertRune('\t')
-				edit_box.Unlock()
 			case termbox.KeyArrowUp:
-				edit_box.Lock()
 				edit_box.ScrollUp();
-				edit_box.Unlock()
 			case termbox.KeyArrowDown:
-				edit_box.Lock()
 				edit_box.ScrollDown();
-				edit_box.Unlock()
 			case termbox.KeyPgup:
-				edit_box.Lock()
 				edit_box.ScrollUp();
-				edit_box.Unlock()
 			case termbox.KeyPgdn:
-				edit_box.Lock()
 				edit_box.ScrollDown();
-				edit_box.Unlock()
 			case termbox.KeySpace:
-				edit_box.Lock()
 				edit_box.InsertRune(' ')
-				edit_box.Unlock()
 			case termbox.KeyCtrlG:
-				edit_box.Lock()
 				edit_box.Follow()
-				edit_box.Unlock()
 			case termbox.KeyCtrlK:
-				edit_box.Lock()
 				edit_box.DeleteTheRestOfTheLine()
-				edit_box.Unlock()
 			case termbox.KeyHome, termbox.KeyCtrlA:
-				edit_box.Lock()
 				edit_box.MoveCursorToBeginningOfTheLine()
-				edit_box.Unlock()
 			case termbox.KeyEnd, termbox.KeyCtrlE:
-				edit_box.Lock()
 				edit_box.MoveCursorToEndOfTheLine()
-				edit_box.Unlock()
 			default:
 				if ev.Ch != 0 {
-					edit_box.Lock()
 					edit_box.InsertRune(ev.Ch)
-					edit_box.Unlock()
 				}
 			}
 		case termbox.EventError:
