@@ -27,3 +27,5 @@ _testmain.go
 search.iml
 *.log
 search
+vendor/
+x.txt
