@@ -434,7 +434,7 @@ func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool
 	return noInSet
 }
 
-func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
+func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan SearchRes, quit chan bool) {
 	mutex2.Lock()
 	defer mutex2.Unlock()
 	ttt := time.Now()
@@ -445,12 +445,11 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 		c := b.Cursor()
 		k, v := c.Last()
 
-		for ; k != nil && count < int64(s); k, v = c.Prev() {
+		for ; k != nil && count < int64(wantedItems); k, v = c.Prev() {
 			select {
 			case <-quit:
 				return nil
 			default:
-
 				var events Events
 				err := events.Unmarshal(v)
 				if err != nil {
@@ -472,7 +471,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 				for i := len(events.Events) - 1; i >= 0; i-- {
 					event := events.Events[i]
 					if len(t) == 0 {
-						if seek == int64(0) {
+						if skipItems == int64(0) {
 							count += int64(event.Lines) + int64(1)
 							eventRes := EventRes{Data:event.Data,
 								Lines: event.Lines,
@@ -483,7 +482,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 							searchRes.Events = append(searchRes.Events, &eventRes)
 							continue
 						}
-						seek--
+						skipItems--
 						continue
 					}
 					if event.BloomDirty {
@@ -492,10 +491,10 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 
 					add := event.shouldAddAndGetIndexes(keys)
 					if add {
-						if seek == int64(0) {
+						if skipItems == int64(0) {
 							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 								searchRes.Count++
-								if count == int64(s) - 1 {
+								if count == int64(wantedItems) - 1 {
 									continue
 								}
 							}
@@ -511,7 +510,7 @@ func SearchFor(t []byte, s int, seek int64, ch chan SearchRes, quit chan bool) {
 							searchRes.Events = append(searchRes.Events, &eventRes)
 							continue
 						}
-						seek--
+						skipItems--
 					}
 				}
 			}
