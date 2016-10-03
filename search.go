@@ -204,7 +204,7 @@ func int64timeToByte(i int64) []byte {
 	binary.BigEndian.PutUint64(b, uint64(i))
 	return b
 }
-func tailFile(fileMonitor FileMonitor, edit_box *EditBox ) {
+func tailFile(fileMonitor FileMonitor, edit_box *EditBox) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
 		ReOpen:true,
 		Poll: fileMonitor.Poll,
@@ -356,51 +356,34 @@ func tailFile(fileMonitor FileMonitor, edit_box *EditBox ) {
 	}
 }
 
-func regenerateBloom(k []byte) {
-	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Events"))
-		by := b.Get(k)
-		var e Events
-		err := e.Unmarshal(by)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if e.BloomDirty {
-			e.RegenerateBloom()
-			by, err = e.Marshal()
+func regenerateBloom(keys chan  []byte) {
+	for {
+		k := <- keys
+		err := db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("Events"))
+			by := b.Get(k)
+			var e Events
+			err := e.Unmarshal(by)
 			if err != nil {
 				log.Fatal(err)
 			}
-			b.Put(k, by)
-		}
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-func eventRegenBloom(k []byte, i int) {
-	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Events"))
-		by := b.Get(k)
-		var e Events
-		err := e.Unmarshal(by)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if i > len(e.Events) - 1 {
+			if e.BloomDirty {
+				e.RegenerateBloom()
+				for _, event := range e.Events {
+					event.GenerateBloom()
+				}
+
+				by, err = e.Marshal()
+				if err != nil {
+					log.Fatal(err)
+				}
+				b.Put(k, by)
+			}
 			return nil
-		}
-		e.Events[i].GenerateBloom()
-		by, err = e.Marshal()
+		})
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.Put(k, by)
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
 	}
 }
 func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool {
@@ -460,7 +443,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan SearchRes, qu
 				keys := strings.Split(search[0], " ")
 				search = search[1:]
 				if events.BloomDirty {
-					go regenerateBloom(k);
+					regenBloomForKey <- k
 				} else {
 					if len(t) != 0 {
 						if shouldNotContinueBasedOnBucketFilter(keys, events.Bloom) {
@@ -485,10 +468,6 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan SearchRes, qu
 						skipItems--
 						continue
 					}
-					if event.BloomDirty {
-						go eventRegenBloom(k, i)
-					}
-
 					add := event.shouldAddAndGetIndexes(keys)
 					if add {
 						if skipItems == int64(0) {

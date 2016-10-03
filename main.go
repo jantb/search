@@ -15,6 +15,7 @@ import (
 var filename = flag.String("add", "", "Filename to monitor")
 var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
+var regenBloomForKey = make(chan []byte, 10000)
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -124,7 +125,7 @@ func main() {
 			redraw_all(*edit_box)
 		}
 	}()
-
+	go regenerateBloom(regenBloomForKey);
 	mainloop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
