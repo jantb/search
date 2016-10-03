@@ -1,8 +1,9 @@
-package main
+package searchfor
 
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
+	"search/proto"
 )
 
 var data = `The Go language has built-in facilities, as well as library support,
@@ -42,51 +43,51 @@ var data = `The Go language has built-in facilities, as well as library support,
 		condition safety, below.`
 
 func TestEvent_Search(t *testing.T) {
-	e := Event{
+	e := proto.Event{
 		BloomDirty:true,
 		Data:data, }
-	assert.Equal(t, 60, e.shouldAddAndGetIndexes([]byte("support")))
-	assert.Equal(t, -1, e.shouldAddAndGetIndexes([]byte("supportss")))
+	assert.Equal(t, 60, e.ShouldAddAndGetIndexes([]byte("support")))
+	assert.Equal(t, -1, e.ShouldAddAndGetIndexes([]byte("supportss")))
 }
 
 func BenchmarkEvent_Search_Worst_Case(b *testing.B) {
-	e := Event{
+	e := proto.Event{
 		BloomDirty:true,
 		Data:data, }
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.shouldAddAndGetIndexes([]byte("below"))
+		e.ShouldAddAndGetIndexes([]byte("below"))
 	}
 }
 
 func BenchmarkEvent_Search_Bloom_Worst_Case(b *testing.B) {
-	e := Event{
+	e := proto.Event{
 		BloomDirty:true,
 		Data:data, }
 	e.GenerateBloom()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.shouldAddAndGetIndexes([]byte("below"))
+		e.ShouldAddAndGetIndexes([]byte("below"))
 	}
 }
 
 func BenchmarkEvent_Search(b *testing.B) {
-	e := Event{
+	e := proto.Event{
 		BloomDirty:true,
 		Data:data, }
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.shouldAddAndGetIndexes([]byte("Go"))
+		e.ShouldAddAndGetIndexes([]byte("Go"))
 	}
 }
 
 func BenchmarkEvent_Search_Bloom(b *testing.B) {
-	e := Event{
+	e := proto.Event{
 		BloomDirty:true,
 		Data:data, }
 	e.GenerateBloom()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.shouldAddAndGetIndexes([]byte("Go"))
+		e.ShouldAddAndGetIndexes([]byte("Go"))
 	}
 }

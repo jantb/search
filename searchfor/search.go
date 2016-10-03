@@ -1,4 +1,4 @@
-package main
+package searchfor
 
 import (
 	"github.com/boltdb/bolt"
@@ -7,9 +7,13 @@ import (
 	"github.com/golang/leveldb/bloom"
 	"strings"
 	"search/proto"
+	"sync"
 )
 
-func regenerateBloom(keys chan []byte) {
+var regenChan = make(chan []byte, 10000)
+var once sync.Once
+
+func regenerateBloom(keys chan []byte, db *bolt.DB) {
 	for {
 		k := <-keys
 		err := db.Update(func(tx *bolt.Tx) error {
@@ -71,12 +75,13 @@ func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool
 	return noInSet
 }
 
-func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchRes, quit chan bool) {
-	mutex2.Lock()
-	defer mutex2.Unlock()
+func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchRes, quit chan bool, db *bolt.DB) {
 	ttt := time.Now()
 	var searchRes proto.SearchRes
 	count := int64(0)
+	once.Do(func() {
+		go regenerateBloom(regenChan, db)
+	})
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		c := b.Cursor()
@@ -97,7 +102,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 				keys := strings.Split(search[0], " ")
 				search = search[1:]
 				if events.BloomDirty {
-					regenBloomForKey <- k
+					regenChan <- k
 				} else {
 					if len(t) != 0 {
 						if shouldNotContinueBasedOnBucketFilter(keys, events.Bloom) {

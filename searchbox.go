@@ -9,6 +9,7 @@ import (
 	"sync"
 	"strings"
 	"search/proto"
+	"search/searchfor"
 )
 
 var mutex = &sync.Mutex{}
@@ -270,7 +271,7 @@ func (eb *EditBox) Search() {
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
 	eb.count = 0
-	go SearchFor(eb.text, h - 2, eb.Seek(), eb.eventChan, eb.quitSearch)
+	go searchfor.SearchFor(eb.text, h - 2, eb.Seek(), eb.eventChan, eb.quitSearch, db)
 	mutex.Unlock()
 }
 
