@@ -1,6 +1,6 @@
 syntax = 'proto3';
 
-package main;
+package proto;
 
 message Events {
     bytes bloom = 1;

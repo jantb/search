@@ -4,15 +4,16 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
 	"unicode/utf8"
-	"time"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"sync"
 	"strings"
+	"search/proto"
 )
 
 var mutex = &sync.Mutex{}
 var mutex2 = &sync.Mutex{}
+var eb_chan chan chan EditBox = make(chan chan EditBox)
 
 func fill(x, y, w, h int, cell termbox.Cell) {
 	for ly := 0; ly < h; ly++ {
@@ -70,17 +71,16 @@ const tabstop_length = 8
 
 type EditBox struct {
 	sync.Mutex
-	events         []*EventRes
+	events         []*proto.EventRes
 	text           []byte
 	seek           int64
 	line_voffset   int
-	eventChan      chan SearchRes
+	eventChan      chan proto.SearchRes
 	quitSearch     chan bool
 	cursor_boffset int // cursor offset in bytes
 	cursor_voffset int // visual cursor offset in termbox cells
 	cursor_coffset int // cursor offset in unicode code points
 	stats          string
-	storeLine      time.Duration
 	count          int64
 }
 
@@ -280,8 +280,6 @@ func (eb *EditBox) CursorX() int {
 	return eb.cursor_voffset - eb.line_voffset
 }
 
-
-
 func insertNewlineAtIInString(in string, i int) (string, int) {
 	if i < 21 {
 		return in, 0
@@ -370,7 +368,7 @@ func redraw_all(edit_box EditBox) {
 	db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Meta"))
 		by := b.Get([]byte("Meta"))
-		var meta Meta
+		var meta proto.Meta
 		meta.Unmarshal(by)
 		nodecount = meta.Count
 		return nil
@@ -379,7 +377,7 @@ func redraw_all(edit_box EditBox) {
 	if edit_box.count > 0 {
 		count = fmt.Sprintf("Count: %d", edit_box.count)
 	}
-	ns := fmt.Sprintf("%s Parse line: %s Search: %s Events: %d", count, edit_box.storeLine, edit_box.stats, nodecount)
+	ns := fmt.Sprintf("%s Search: %s Events: %d", count, edit_box.stats, nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
 	}

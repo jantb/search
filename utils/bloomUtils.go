@@ -1,11 +1,11 @@
-package main
+package utils
 
 import (
 	"strings"
 	"unicode"
 )
 
-func getBloomKeysFromLine(line string)[][]byte{
+func GetBloomKeysFromLine(line string)[][]byte{
 	fields := strings.FieldsFunc(line, func(r rune) bool{
 		if r == '=' {
 			return false

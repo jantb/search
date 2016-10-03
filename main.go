@@ -10,6 +10,8 @@ import (
 	"github.com/nsf/termbox-go"
 	"time"
 	"syscall"
+	"search/proto"
+	"search/tail"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -60,7 +62,7 @@ func main() {
 				b := tx.Bucket([]byte("Files"))
 				dir, _ := filepath.Abs(filepath.Dir(*filename))
 				filep := filepath.Join(dir, filepath.Base(*filename))
-				fileMonitor := FileMonitor{
+				fileMonitor := proto.FileMonitor{
 					Path:filep,
 					Offset:0,
 					Poll: *poll,
@@ -78,7 +80,7 @@ func main() {
 
 	edit_box := New()
 	edit_box.Lock()
-	edit_box.eventChan = make(chan SearchRes)
+	edit_box.eventChan = make(chan proto.SearchRes)
 	edit_box.quitSearch = make(chan bool)
 	edit_box.Unlock()
 
@@ -86,12 +88,12 @@ func main() {
 		b := tx.Bucket([]byte("Files"))
 		c := b.Cursor()
 		for k, f := c.First(); k != nil; k, f = c.Next() {
-			fileMonitor := FileMonitor{}
+			fileMonitor := proto.FileMonitor{}
 			fileMonitor.Unmarshal(f)
 			if err != nil {
 				log.Fatal(err)
 			}
-			go tailFile(fileMonitor, edit_box)
+			go tail.TailFile(fileMonitor, db)
 		}
 		return nil
 	})
@@ -114,7 +116,7 @@ func main() {
 		}
 	}()
 	go func() {
-		var searchRes SearchRes
+		var searchRes proto.SearchRes
 		for {
 			searchRes = <-edit_box.eventChan
 			edit_box.Lock()
