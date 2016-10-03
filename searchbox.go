@@ -314,7 +314,7 @@ func insertNewlineAtIInString(in string, i int) (string, int) {
 	return strings.Join(split, "\n"), c
 }
 
-func redraw_all(edit_box EditBox) {
+func redraw_all(edit_box *EditBox) {
 	const coldef = termbox.ColorDefault
 	termbox.Clear(coldef, coldef)
 	w, h := termbox.Size()

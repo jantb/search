@@ -119,7 +119,7 @@ func main() {
 			edit_box.stats = searchRes.Ts
 			edit_box.events = searchRes.Events
 			edit_box.mtx.Unlock()
-			redraw_all(*edit_box)
+			redraw_all(edit_box)
 		}
 	}(edit_box)
 
@@ -163,6 +163,7 @@ func main() {
 					edit_box.InsertRune(ev.Ch)
 				}
 			}
+			edit_box.eventChan <- proto.SearchRes{}
 		case termbox.EventError:
 			panic(ev.Err)
 		}
