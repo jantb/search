@@ -2,13 +2,13 @@ package main
 
 import (
 	"github.com/mattn/go-runewidth"
-	"github.com/nsf/termbox-go"
 	"unicode/utf8"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"strings"
 	"search/proto"
 	"search/searchfor"
+	"github.com/gdamore/tcell/termbox"
 )
 
 func fill(x, y, w, h int, cell termbox.Cell) {

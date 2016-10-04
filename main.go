@@ -7,13 +7,13 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-	"github.com/nsf/termbox-go"
 	"time"
 	"syscall"
 	"search/proto"
 	"search/tail"
 	"sync/atomic"
 	"os/signal"
+	"github.com/gdamore/tcell/termbox"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -106,7 +106,7 @@ func main() {
 	searchChan := make(chan bool)
 	go func(e *EditBox) {
 		for {
-			time.Sleep(time.Millisecond * 1000)
+			time.Sleep(time.Millisecond * 100)
 			if atomic.LoadInt64(&edit_box.seek) == int64(0) {
 				searchChan <- true
 			}
