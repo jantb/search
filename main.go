@@ -13,6 +13,7 @@ import (
 	"search/proto"
 	"search/tail"
 	"sync/atomic"
+	"os/signal"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -102,71 +103,84 @@ func main() {
 	}
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
+	searchChan := make(chan bool)
 	go func(e *EditBox) {
 		for {
 			time.Sleep(time.Millisecond * 1000)
 			if atomic.LoadInt64(&edit_box.seek) == int64(0) {
-				e.Search()
+				searchChan <- true
 			}
-		}
-	}(edit_box)
-	go func(edit_box *EditBox) {
-		var searchRes proto.SearchRes
-		for {
-			searchRes = <-edit_box.eventChan
-			edit_box.mtx.Lock()
-			edit_box.count = searchRes.Count
-			edit_box.stats = searchRes.Ts
-			edit_box.events = searchRes.Events
-			edit_box.mtx.Unlock()
-			redraw_all(edit_box)
 		}
 	}(edit_box)
 
+	eventChan := make(chan termbox.Event)
+	go func() {
+		for {
+			event := termbox.PollEvent()
+			eventChan <- event
+		}
+	}()
+	// register signals to channel
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
+
 	mainloop:
 	for {
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			switch ev.Key {
-			case termbox.KeyEsc:
-				break mainloop
-			case termbox.KeyArrowLeft, termbox.KeyCtrlB:
-				edit_box.MoveCursorOneRuneBackward()
-			case termbox.KeyArrowRight, termbox.KeyCtrlF:
-				edit_box.MoveCursorOneRuneForward()
-			case termbox.KeyBackspace, termbox.KeyBackspace2:
-				edit_box.DeleteRuneBackward()
-			case termbox.KeyDelete, termbox.KeyCtrlD:
-				edit_box.DeleteRuneForward()
-			case termbox.KeyTab:
-				edit_box.InsertRune('\t')
-			case termbox.KeyArrowUp:
-				edit_box.ScrollUp();
-			case termbox.KeyArrowDown:
-				edit_box.ScrollDown();
-			case termbox.KeyPgup:
-				edit_box.ScrollUp();
-			case termbox.KeyPgdn:
-				edit_box.ScrollDown();
-			case termbox.KeySpace:
-				edit_box.InsertRune(' ')
-			case termbox.KeyCtrlG:
-				edit_box.Follow()
-			case termbox.KeyCtrlK:
-				edit_box.DeleteTheRestOfTheLine()
-			case termbox.KeyHome, termbox.KeyCtrlA:
-				edit_box.MoveCursorToBeginningOfTheLine()
-			case termbox.KeyEnd, termbox.KeyCtrlE:
-				edit_box.MoveCursorToEndOfTheLine()
-			default:
-				if ev.Ch != 0 {
-					edit_box.InsertRune(ev.Ch)
+		select {
+		case ev := <-eventChan:
+			switch  ev.Type {
+			case termbox.EventKey:
+				switch ev.Key {
+				case termbox.KeyCtrlC:
+					break mainloop
+				case termbox.KeyArrowLeft, termbox.KeyCtrlB:
+					edit_box.MoveCursorOneRuneBackward()
+				case termbox.KeyArrowRight, termbox.KeyCtrlF:
+					edit_box.MoveCursorOneRuneForward()
+				case termbox.KeyBackspace, termbox.KeyBackspace2:
+					edit_box.DeleteRuneBackward()
+				case termbox.KeyDelete, termbox.KeyCtrlD:
+					edit_box.DeleteRuneForward()
+				case termbox.KeyTab:
+					edit_box.InsertRune('\t')
+				case termbox.KeyArrowUp:
+					edit_box.ScrollUp();
+				case termbox.KeyArrowDown:
+					edit_box.ScrollDown();
+				case termbox.KeyPgup:
+					edit_box.ScrollUp();
+				case termbox.KeyPgdn:
+					edit_box.ScrollDown();
+				case termbox.KeySpace:
+					edit_box.InsertRune(' ')
+				case termbox.KeyCtrlG:
+					edit_box.Follow()
+				case termbox.KeyCtrlK:
+					edit_box.DeleteTheRestOfTheLine()
+				case termbox.KeyHome, termbox.KeyCtrlA:
+					edit_box.MoveCursorToBeginningOfTheLine()
+				case termbox.KeyEnd, termbox.KeyCtrlE:
+					edit_box.MoveCursorToEndOfTheLine()
+				default:
+					if ev.Ch != 0 {
+						edit_box.InsertRune(ev.Ch)
+					}
 				}
+			case termbox.EventError:
+				panic(ev.Err)
 			}
-			edit_box.eventChan <- proto.SearchRes{}
-		case termbox.EventError:
-			panic(ev.Err)
+		case searchRes := <-edit_box.eventChan:
+			edit_box.count = searchRes.Count
+			edit_box.stats = searchRes.Ts
+			edit_box.events = searchRes.Events
+			redraw_all(edit_box)
+		case <-searchChan:
+			edit_box.Search()
+		case <-sigChan:
+			break mainloop
 		}
 	}
+
 }
 
