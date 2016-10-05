@@ -14,13 +14,39 @@ import (
 	"github.com/gdamore/tcell/termbox"
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/tail"
+	"golang.org/x/net/context"
+	"github.com/jantb/search/searchfor"
+	"net"
+	"google.golang.org/grpc"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
 var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
 
+const (
+	port = ":50051"
+)
+type server struct{}
+
+func (s *server) Process(ctx context.Context, in *proto.SearchConf) (*proto.SearchRes, error) {
+	channel := make(chan proto.SearchRes)
+	quitChan := make(chan bool)
+	searchfor.SearchFor(in.Text, in.Size_, in.Skipped, quitChan, channel,db)
+	return <-channel, nil
+}
+
 func main() {
+
+	go func() {
+		lis, err := net.Listen("tcp", port)
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+		s := grpc.NewServer()
+		proto.RegisterSearchServer(s, &server{})
+		s.Serve(lis)
+	}()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	logFile, _ := os.OpenFile("x.txt", os.O_WRONLY | os.O_CREATE | os.O_SYNC, 0755)
 	syscall.Dup2(int(logFile.Fd()), 1)

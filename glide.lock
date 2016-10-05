@@ -1,5 +1,5 @@
-hash: 7f09c41936d8fb54ea841c0e108c3fa65d9c09ef1d6e020c4acdfa0b77ab87b5
-updated: 2016-10-04T21:32:31.142786274+02:00
+hash: 4673559de084e310eb2aa74ca6e318ee2f51178ecef7919bf458ed24e7fa7eff
+updated: 2016-10-05T20:26:25.60624206+02:00
 imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
@@ -14,7 +14,12 @@ imports:
 - name: github.com/gogo/protobuf
   version: 909568be09de550ed094403c2bf8a261b5bb730a
   subpackages:
+  - gogoproto
   - proto
+  - protoc-gen-gogo/descriptor
+  - protoc-gen-gogo/generator
+  - protoc-gen-gogo/grpc
+  - protoc-gen-gogo/plugin
 - name: github.com/golang/leveldb
   version: 64b19651078cdc84d43241b0faf7de4c5b581a5f
   subpackages:
@@ -34,6 +39,10 @@ imports:
   version: 399a9d7bfe85437346a5ec4ef0450fc2f1084e61
   subpackages:
   - reflectutil
+- name: golang.org/x/net
+  version: ffe101cce3477a6c6d8f0754d103bb0a84ec1266
+  subpackages:
+  - context
 - name: golang.org/x/sys
   version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
   subpackages:
@@ -44,6 +53,8 @@ imports:
   - encoding
   - encoding/internal/identifier
   - transform
+- name: google.golang.org/grpc
+  version: b1a2821ca5a4fd6b6e48ddfbb7d6d7584d839d21
 - name: gopkg.in/fsnotify.v1
   version: 7be54206639f256967dd82fa767397ba5f8f48f5
 - name: gopkg.in/tomb.v1

@@ -17,3 +17,5 @@ import:
 - package: github.com/gdamore/tcell
   subpackages:
   - termbox
+- package: google.golang.org/grpc
+  version: ^1.0.2
