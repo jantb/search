@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"os/signal"
 	"github.com/gdamore/tcell/termbox"
+	"search/searchfor"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -107,7 +108,7 @@ func main() {
 	go func(e *EditBox) {
 		for {
 			time.Sleep(time.Millisecond * 100)
-			if atomic.LoadInt64(&edit_box.seek) == int64(0) {
+			if atomic.LoadInt64(&edit_box.seek) == int64(0)&& atomic.LoadInt32(&searchfor.Searching) == int32(0) {
 				searchChan <- true
 			}
 		}

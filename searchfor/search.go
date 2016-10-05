@@ -12,7 +12,7 @@ import (
 
 var regenChan = make(chan []byte, 10000)
 var once sync.Once
-
+var Searching int32
 func regenerateBloom(keys chan []byte, db *bolt.DB) {
 	for {
 		k := <-keys
@@ -76,6 +76,9 @@ func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool
 }
 
 func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchRes, quit chan bool, db *bolt.DB) {
+	Searching = 1
+	defer func() {
+		Searching = 0}()
 	ttt := time.Now()
 	var searchRes proto.SearchRes
 	count := int64(0)
