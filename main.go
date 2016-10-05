@@ -27,16 +27,23 @@ var db *bolt.DB
 const (
 	port = ":50051"
 )
+
 type server struct{}
 
 func (s *server) Process(ctx context.Context, in *proto.SearchConf) (*proto.SearchRes, error) {
 	channel := make(chan proto.SearchRes)
 	quitChan := make(chan bool)
-	searchfor.SearchFor(in.Text, in.Size_, in.Skipped, quitChan, channel,db)
-	return <-channel, nil
+	go searchfor.SearchFor(in.Text, int(in.Size_), int64(in.Skipped), channel, quitChan, db)
+	r := <-channel
+	return &r, nil
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	logFile, _ := os.OpenFile("x.txt", os.O_WRONLY | os.O_CREATE | os.O_SYNC, 0755)
+	syscall.Dup2(int(logFile.Fd()), 1)
+	syscall.Dup2(int(logFile.Fd()), 2)
+	flag.Parse()
 
 	go func() {
 		lis, err := net.Listen("tcp", port)
@@ -47,11 +54,22 @@ func main() {
 		proto.RegisterSearchServer(s, &server{})
 		s.Serve(lis)
 	}()
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	logFile, _ := os.OpenFile("x.txt", os.O_WRONLY | os.O_CREATE | os.O_SYNC, 0755)
-	syscall.Dup2(int(logFile.Fd()), 1)
-	syscall.Dup2(int(logFile.Fd()), 2)
-	flag.Parse()
+
+	go func() {
+		conn, err := grpc.Dial("localhost" + port, grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		defer conn.Close()
+		c := proto.NewSearchClient(conn)
+		time.Sleep(10 * time.Second)
+		r, err := c.Process(context.Background(), &proto.SearchConf{Text:[]byte("INFO"), Size_: int64(10), Skipped: int64(0) })
+
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		log.Println(r)
+	}()
 
 	usr, err := user.Current()
 	if err != nil {
