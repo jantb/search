@@ -1,4 +1,4 @@
-package tail
+package  tail
 
 import (
 	"time"
@@ -6,8 +6,8 @@ import (
 	"github.com/hpcloud/tail"
 	"log"
 	"encoding/binary"
-	"search/proto"
 	"github.com/boltdb/bolt"
+	"github.com/jantb/search/proto"
 )
 
 func TailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {

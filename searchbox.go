@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/boltdb/bolt"
 	"strings"
-	"search/proto"
-	"search/searchfor"
 	"github.com/gdamore/tcell/termbox"
+	"github.com/jantb/search/searchfor"
+	"github.com/jantb/search/proto"
 )
 
 func fill(x, y, w, h int, cell termbox.Cell) {

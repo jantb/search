@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"github.com/golang/leveldb/bloom"
+	"github.com/jantb/search/utils"
 )
 
 func (event *Event) ShouldAddAndGetIndexes(keys []string) (bool) {
@@ -109,4 +110,29 @@ func (event Event) GetKeyIndexes(keys []string) []int32 {
 		}
 	}
 	return keyIndexes
+}
+
+func (e *Event) GenerateBloom() {
+	if e.BloomDirty {
+		e.Fields = e.Fields[:0]
+		set := make(map[string]bool)
+		for _, key := range utils.GetBloomKeysFromLine(e.Data) {
+			set[string(key)] = true
+			if strings.ContainsRune(string(key), '=') {
+				split := strings.Split(string(key), "=")
+				set[string(split[0])] = true
+				set[string(split[1])] = true
+				e.Fields = append(e.Fields,&Field{Key:split[0], Value:split[1]})
+			}
+		}
+		for _, key := range utils.GetBloomKeysFromLine(e.Path) {
+			set[string(key)] = true
+		}
+		keys := make([][]byte, 0, len(set))
+		for k := range set {
+			keys = append(keys, []byte(k))
+		}
+		e.Bloom = bloom.NewFilter(nil, keys, 10)
+		e.BloomDirty = false
+	}
 }

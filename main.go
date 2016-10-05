@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"time"
 	"syscall"
-	"search/proto"
-	"search/tail"
 	"sync/atomic"
 	"os/signal"
 	"github.com/gdamore/tcell/termbox"
+	"github.com/jantb/search/proto"
+	"github.com/jantb/search/tail"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")

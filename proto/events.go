@@ -1,10 +1,9 @@
 package proto
 
 import (
-	"strings"
 	"github.com/bradfitz/slice"
 	"github.com/golang/leveldb/bloom"
-	"search/utils"
+	"github.com/jantb/search/utils"
 )
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
@@ -39,25 +38,4 @@ func (e *Events) RegenerateBloom() {
 	e.Bloom = bloom.NewFilter(nil, keys, 10)
 	e.BloomDirty = false
 }
-func (e *Event) GenerateBloom() {
-	if e.BloomDirty {
-		set := make(map[string]bool)
-		for _, key := range utils.GetBloomKeysFromLine(e.Data) {
-			set[string(key)] = true
-			if strings.ContainsRune(string(key), '=') {
-				split := strings.Split(string(key), "=")
-				set[string(split[0])] = true
-				set[string(split[1])] = true
-			}
-		}
-		for _, key := range utils.GetBloomKeysFromLine(e.Path) {
-			set[string(key)] = true
-		}
-		keys := make([][]byte, 0, len(set))
-		for k := range set {
-			keys = append(keys, []byte(k))
-		}
-		e.Bloom = bloom.NewFilter(nil, keys, 10)
-		e.BloomDirty = false
-	}
-}
+

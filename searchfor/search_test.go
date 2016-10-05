@@ -3,7 +3,7 @@ package searchfor
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
-	"search/proto"
+	"github.com/jantb/search/proto"
 )
 
 var data = `The Go language has built-in facilities, as well as library support,
