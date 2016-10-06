@@ -29,6 +29,7 @@ func (e *Events) RegenerateBloom() {
 		for _, key := range utils.GetBloomKeysFromLine(ev.Path) {
 			set[string(key)] = true
 		}
+		ev.GenerateBloom()
 	}
 	keys := make([][]byte, 0, len(set))
 	for k := range set {

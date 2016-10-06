@@ -26,9 +26,7 @@ func regenerateBloom(keys chan []byte, db *bolt.DB) {
 			}
 			if e.BloomDirty {
 				e.RegenerateBloom()
-				for _, event := range e.Events {
-					event.GenerateBloom()
-				}
+
 
 				by, err = e.Marshal()
 				if err != nil {
