@@ -9,17 +9,34 @@ import (
 	"path/filepath"
 	"time"
 	"syscall"
-	"search/proto"
-	"search/tail"
 	"sync/atomic"
 	"os/signal"
 	"github.com/gdamore/tcell/termbox"
-	"search/searchfor"
+	"github.com/jantb/search/proto"
+	"github.com/jantb/search/tail"
+	"golang.org/x/net/context"
+	"github.com/jantb/search/searchfor"
+	"net"
+	"google.golang.org/grpc"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
 var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
+
+const (
+	port = ":50051"
+)
+
+type server struct{}
+
+func (s *server) Process(ctx context.Context, in *proto.SearchConf) (*proto.SearchRes, error) {
+	channel := make(chan proto.SearchRes)
+	quitChan := make(chan bool)
+	go searchfor.SearchFor(in.Text, int(in.Size_), int64(in.Skipped), channel, quitChan, db)
+	r := <-channel
+	return &r, nil
+}
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -27,6 +44,32 @@ func main() {
 	syscall.Dup2(int(logFile.Fd()), 1)
 	syscall.Dup2(int(logFile.Fd()), 2)
 	flag.Parse()
+
+	go func() {
+		lis, err := net.Listen("tcp", port)
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+		s := grpc.NewServer()
+		proto.RegisterSearchServer(s, &server{})
+		s.Serve(lis)
+	}()
+
+	go func() {
+		conn, err := grpc.Dial("localhost" + port, grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		defer conn.Close()
+		c := proto.NewSearchClient(conn)
+		time.Sleep(10 * time.Second)
+		r, err := c.Process(context.Background(), &proto.SearchConf{Text:[]byte("INFO"), Size_: int64(10), Skipped: int64(0) })
+
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		log.Println(r)
+	}()
 
 	usr, err := user.Current()
 	if err != nil {

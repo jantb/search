@@ -6,8 +6,8 @@ import (
 	"time"
 	"github.com/golang/leveldb/bloom"
 	"strings"
-	"search/proto"
 	"sync"
+	"github.com/jantb/search/proto"
 )
 
 var regenChan = make(chan []byte, 10000)
