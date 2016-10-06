@@ -63,12 +63,11 @@ func main() {
 		defer conn.Close()
 		c := proto.NewSearchClient(conn)
 		time.Sleep(10 * time.Second)
-		r, err := c.Process(context.Background(), &proto.SearchConf{Text:[]byte("INFO"), Size_: int64(10), Skipped: int64(0) })
+		_, err = c.Process(context.Background(), &proto.SearchConf{Text:[]byte("INFO"), Size_: int64(10), Skipped: int64(0) })
 
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
 		}
-		log.Println(r)
 	}()
 
 	usr, err := user.Current()
