@@ -70,11 +70,11 @@ func TailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				event.BloomDirty = true
 				event.Lines += 1
 				events.BloomDirty = true
+				events.RegenerateBloom()
 				by, err = events.Marshal()
 				if err != nil {
 					log.Fatal(err)
 				}
-
 				b.Put(key, by)
 				return nil
 			})
@@ -113,6 +113,7 @@ func TailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			events.SortEvents()
 
 			events.BloomDirty = true
+			events.RegenerateBloom()
 			by, err := events.Marshal()
 			if err != nil {
 				log.Panic(err)
