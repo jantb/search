@@ -18,6 +18,8 @@ func regenerateBloom(keys chan []byte, db *bolt.DB) {
 		k := <-keys
 		err := db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Events"))
+			b,_ = b.CreateBucketIfNotExists(Int64timeToByte(ByteToint64timeTo(k).Truncate(24 * time.Hour).Unix()))
+
 			by := b.Get(k)
 			var e proto.Events
 			err := e.Unmarshal(by)
@@ -49,6 +51,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		Logger:tail.DiscardingLogger,
 		Location:&tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
 	var key []byte
+	var dayKey []byte
 	var prevData string
 	var prevTs string
 
@@ -87,7 +90,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		if ok == -1 || ok == 0 {
 			err = db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte("Events"))
-
+				b,_ = b.CreateBucketIfNotExists(dayKey)
 				by := b.Get(key)
 
 				var events proto.Events
@@ -123,11 +126,13 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			BloomDirty:true,
 		}
 
-		key = int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
+		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
+		dayKey = Int64timeToByte(tt.Truncate(24 * time.Hour).Unix())
 		prevData = event.Data
 		prevTs = event.Ts
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Events"))
+			b,_ = b.CreateBucketIfNotExists(dayKey)
 			eventsb := b.Get(key)
 			if eventsb == nil {
 				var events proto.Events
@@ -210,11 +215,16 @@ var formats = []string{"2006/01/02 15:04:05",
 	time.RFC3339Nano,
 }
 
-func int64timeToByte(i int64) []byte {
+func Int64timeToByte(i int64) []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(i))
 	return b
 }
+
+func ByteToint64timeTo(bytes []byte) time.Time {
+	return time.Unix(int64(binary.BigEndian.Uint64(bytes)),int64(0))
+}
+
 
 func TailAllFiles(db *bolt.DB) {
 	once.Do(func() {
