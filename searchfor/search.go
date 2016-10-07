@@ -10,37 +10,9 @@ import (
 	"github.com/jantb/search/proto"
 )
 
-var regenChan = make(chan []byte, 10000)
-var once sync.Once
+
 var Searching int32
-func regenerateBloom(keys chan []byte, db *bolt.DB) {
-	for {
-		k := <-keys
-		err := db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Events"))
-			by := b.Get(k)
-			var e proto.Events
-			err := e.Unmarshal(by)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if e.BloomDirty {
-				e.RegenerateBloom()
 
-
-				by, err = e.Marshal()
-				if err != nil {
-					log.Fatal(err)
-				}
-				b.Put(k, by)
-			}
-			return nil
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
 
 func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool {
 	noInSet := false
@@ -80,9 +52,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 	ttt := time.Now()
 	var searchRes proto.SearchRes
 	count := int64(0)
-	once.Do(func() {
-		go regenerateBloom(regenChan, db)
-	})
+
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		c := b.Cursor()
