@@ -68,6 +68,18 @@ func main() {
 		}
 	}()
 
+	db = getDb()
+	defer db.Close()
+
+	if *filename != "" {
+		tail.AddFileToTail(*filename, *poll, db)
+	}
+
+	tail.TailAllFiles(db)
+	searchbox.Run(db)
+}
+
+func getDb()*bolt.DB{
 	usr, err := user.Current()
 	if err != nil {
 		log.Fatal(err)
@@ -78,7 +90,7 @@ func main() {
 		log.Fatal(err)
 	}
 	db = dbs
-	defer db.Close()
+
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Events"))
@@ -89,52 +101,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if *filename != "" {
-		file, err := os.Open(*filename)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fi, err := file.Stat()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if !fi.IsDir() {
-			err = db.Update(func(tx *bolt.Tx) error {
-				b := tx.Bucket([]byte("Files"))
-				dir, _ := filepath.Abs(filepath.Dir(*filename))
-				filep := filepath.Join(dir, filepath.Base(*filename))
-				fileMonitor := proto.FileMonitor{
-					Path:filep,
-					Offset:0,
-					Poll: *poll,
-				}
-				by, err := fileMonitor.Marshal()
-				if err != nil {
-					log.Fatal(err)
-				}
-				b.Put([]byte(filep), by)
-				return nil
-			})
-			return
-		}
-	}
-
-	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Files"))
-		c := b.Cursor()
-		for k, f := c.First(); k != nil; k, f = c.Next() {
-			fileMonitor := proto.FileMonitor{}
-			fileMonitor.Unmarshal(f)
-			if err != nil {
-				log.Fatal(err)
-			}
-			go tail.TailFile(fileMonitor, db)
-		}
-		return nil
-	})
-
-	searchbox.Run(db)
-
+	return db
 }
 

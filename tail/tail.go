@@ -1,4 +1,4 @@
-package  tail
+package tail
 
 import (
 	"time"
@@ -8,9 +8,10 @@ import (
 	"encoding/binary"
 	"github.com/boltdb/bolt"
 	"github.com/jantb/search/proto"
+	"path/filepath"
 )
 
-func TailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
+func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
 		ReOpen:true,
 		Poll: fileMonitor.Poll,
@@ -182,5 +183,52 @@ func int64timeToByte(i int64) []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(i))
 	return b
+}
+
+func TailAllFiles(db *bolt.DB) {
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Files"))
+		c := b.Cursor()
+		for k, f := c.First(); k != nil; k, f = c.Next() {
+			fileMonitor := proto.FileMonitor{}
+			fileMonitor.Unmarshal(f)
+
+			go tailFile(fileMonitor, db)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+func AddFileToTail(filename string, poll bool, db *bolt.DB) {
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fi, err := file.Stat()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !fi.IsDir() {
+		err = db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("Files"))
+			dir, _ := filepath.Abs(filepath.Dir(filename))
+			filep := filepath.Join(dir, filepath.Base(filename))
+			fileMonitor := proto.FileMonitor{
+				Path:filep,
+				Offset:0,
+				Poll: poll,
+			}
+			by, err := fileMonitor.Marshal()
+			if err != nil {
+				log.Fatal(err)
+			}
+			b.Put([]byte(filep), by)
+			return nil
+		})
+		return
+	}
 }
 
