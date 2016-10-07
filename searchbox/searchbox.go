@@ -1,4 +1,4 @@
-package main
+package searchbox
 
 import (
 	"github.com/mattn/go-runewidth"
@@ -9,6 +9,10 @@ import (
 	"github.com/gdamore/tcell/termbox"
 	"github.com/jantb/search/searchfor"
 	"github.com/jantb/search/proto"
+	"time"
+	"sync/atomic"
+	"os"
+	"os/signal"
 )
 
 func fill(x, y, w, h int, cell termbox.Cell) {
@@ -208,7 +212,7 @@ func (eb *EditBox) MoveCursorToEndOfTheLine() {
 	eb.MoveCursorTo(len(eb.text))
 }
 
-func (eb *EditBox) DeleteRuneBackward() {
+func (eb *EditBox) DeleteRuneBackward(db *bolt.DB) {
 	if eb.cursor_boffset == 0 {
 		return
 	}
@@ -216,50 +220,50 @@ func (eb *EditBox) DeleteRuneBackward() {
 	eb.MoveCursorOneRuneBackward()
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
-	eb.Search()
+	eb.Search(db)
 }
 
-func (eb *EditBox) DeleteRuneForward() {
+func (eb *EditBox) DeleteRuneForward(db *bolt.DB) {
 	if eb.cursor_boffset == len(eb.text) {
 		return
 	}
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
-	eb.Search()
+	eb.Search(db)
 }
 
-func (eb *EditBox) DeleteTheRestOfTheLine() {
+func (eb *EditBox) DeleteTheRestOfTheLine(db *bolt.DB) {
 	eb.text = eb.text[:eb.cursor_boffset]
-	eb.Search()
+	eb.Search(db)
 }
 
-func (eb *EditBox) InsertRune(r rune) {
+func (eb *EditBox) InsertRune(r rune,db *bolt.DB) {
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	eb.text = byte_slice_insert(eb.text, eb.cursor_boffset, buf[:n])
 	eb.MoveCursorOneRuneForward()
-	eb.Search()
+	eb.Search(db)
 }
 
-func (eb *EditBox) ScrollUp() {
+func (eb *EditBox) ScrollUp(db *bolt.DB) {
 	eb.SeekInc()
-	eb.Search()
+	eb.Search(db)
 }
 
-func (eb *EditBox) ScrollDown() {
+func (eb *EditBox) ScrollDown(db *bolt.DB) {
 	eb.SeekDec()
-	eb.Search()
+	eb.Search(db)
 }
-func (eb *EditBox) Follow() {
+func (eb *EditBox) Follow(db *bolt.DB) {
 	eb.SeekSet(int64(0))
-	eb.Search()
+	eb.Search(db)
 }
 func New() *EditBox {
 	return &EditBox{
 
 	}
 }
-func (eb *EditBox) Search() {
+func (eb *EditBox) Search(db *bolt.DB) {
 	_, h := termbox.Size()
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
@@ -267,8 +271,6 @@ func (eb *EditBox) Search() {
 	go searchfor.SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch, db)
 }
 
-// Please, keep in mind that cursor depends on the value of line_voffset, which
-// is being set on Draw() call, so.. call this method after Draw() one.
 func (eb *EditBox) CursorX() int {
 	return eb.cursor_voffset - eb.line_voffset
 }
@@ -297,7 +299,7 @@ func insertNewlineAtIInString(in string, i int) (string, int) {
 	return strings.Join(split, "\n"), c
 }
 
-func redraw_all(edit_box *EditBox) {
+func redraw_all(edit_box *EditBox,db *bolt.DB) {
 	const coldef = termbox.ColorDefault
 	termbox.Clear(coldef, coldef)
 	w, h := termbox.Size()
@@ -374,5 +376,95 @@ func redraw_all(edit_box *EditBox) {
 	}
 	termbox.Flush()
 
+}
+func Run(db *bolt.DB) {
+	edit_box := New()
+	edit_box.eventChan = make(chan proto.SearchRes)
+	edit_box.quitSearch = make(chan bool)
+
+	err := termbox.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer termbox.Close()
+	termbox.SetInputMode(termbox.InputEsc)
+	searchChan := make(chan bool)
+	go func(e *EditBox) {
+		for {
+			time.Sleep(time.Millisecond * 100)
+			if atomic.LoadInt64(&edit_box.seek) == int64(0)&& atomic.LoadInt32(&searchfor.Searching) == int32(0) {
+				searchChan <- true
+			}
+		}
+	}(edit_box)
+
+	eventChan := make(chan termbox.Event)
+	go func() {
+		for {
+			event := termbox.PollEvent()
+			eventChan <- event
+		}
+	}()
+	// register signals to channel
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, os.Interrupt)
+	signal.Notify(sigChan, os.Kill)
+
+	mainloop:
+	for {
+		select {
+		case ev := <-eventChan:
+			switch  ev.Type {
+			case termbox.EventKey:
+				switch ev.Key {
+				case termbox.KeyCtrlC:
+					break mainloop
+				case termbox.KeyArrowLeft, termbox.KeyCtrlB:
+					edit_box.MoveCursorOneRuneBackward()
+				case termbox.KeyArrowRight, termbox.KeyCtrlF:
+					edit_box.MoveCursorOneRuneForward()
+				case termbox.KeyBackspace, termbox.KeyBackspace2:
+					edit_box.DeleteRuneBackward(db)
+				case termbox.KeyDelete, termbox.KeyCtrlD:
+					edit_box.DeleteRuneForward(db)
+				case termbox.KeyTab:
+					edit_box.InsertRune('\t',db)
+				case termbox.KeyArrowUp:
+					edit_box.ScrollUp(db);
+				case termbox.KeyArrowDown:
+					edit_box.ScrollDown(db);
+				case termbox.KeyPgup:
+					edit_box.ScrollUp(db);
+				case termbox.KeyPgdn:
+					edit_box.ScrollDown(db);
+				case termbox.KeySpace:
+					edit_box.InsertRune(' ',db)
+				case termbox.KeyCtrlG:
+					edit_box.Follow(db)
+				case termbox.KeyCtrlK:
+					edit_box.DeleteTheRestOfTheLine(db)
+				case termbox.KeyHome, termbox.KeyCtrlA:
+					edit_box.MoveCursorToBeginningOfTheLine()
+				case termbox.KeyEnd, termbox.KeyCtrlE:
+					edit_box.MoveCursorToEndOfTheLine()
+				default:
+					if ev.Ch != 0 {
+						edit_box.InsertRune(ev.Ch,db)
+					}
+				}
+			case termbox.EventError:
+				panic(ev.Err)
+			}
+		case searchRes := <-edit_box.eventChan:
+			edit_box.count = searchRes.Count
+			edit_box.stats = searchRes.Ts
+			edit_box.events = searchRes.Events
+			redraw_all(edit_box, db)
+		case <-searchChan:
+			edit_box.Search(db)
+		case <-sigChan:
+			break mainloop
+		}
+	}
 }
 
