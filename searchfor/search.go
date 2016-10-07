@@ -54,7 +54,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour * 24).AddDate(0,0,-1)) ; tim = tim.Add(time.Hour * -24) {
+		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour * 24).AddDate(0,-1,0)) ; tim = tim.Add(time.Hour * -24) {
 
 			b, _ = b.CreateBucketIfNotExists(tail.Int64timeToByte(tim.Unix()))
 
