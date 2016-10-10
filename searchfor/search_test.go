@@ -1,9 +1,8 @@
 package searchfor
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"github.com/jantb/search/proto"
+	"testing"
 )
 
 var data = `The Go language has built-in facilities, as well as library support,
@@ -44,24 +43,32 @@ var data = `The Go language has built-in facilities, as well as library support,
 
 func TestEvent_Search(t *testing.T) {
 	e := proto.Event{
-		BloomDirty:true,
-		Data:data, }
-	assert.Equal(t, true, e.ShouldAddAndGetIndexes([]string{"suppor"}))
-	assert.Equal(t, false, e.ShouldAddAndGetIndexes([]string{"supporss"}))
+		BloomDirty: true,
+		Data:       data}
+	if !e.ShouldAddAndGetIndexes([]string{"suppor"}) {
+		t.Fail()
+	}
+	if e.ShouldAddAndGetIndexes([]string{"supporss"}) {
+		t.Fail()
+	}
 }
 
 func TestEvent_Search_Not(t *testing.T) {
 	e := proto.Event{
-		BloomDirty:true,
-		Data:data, }
-	assert.Equal(t, false, e.ShouldAddAndGetIndexes([]string{"!support"}))
-	assert.Equal(t, true, e.ShouldAddAndGetIndexes([]string{"!supporss"}))
+		BloomDirty: true,
+		Data:       data}
+	if e.ShouldAddAndGetIndexes([]string{"!suppor"}) {
+		t.Fail()
+	}
+	if !e.ShouldAddAndGetIndexes([]string{"!supporss"}) {
+		t.Fail()
+	}
 }
 
 func BenchmarkEvent_Search_Worst_Case(b *testing.B) {
 	e := proto.Event{
-		BloomDirty:true,
-		Data:data, }
+		BloomDirty: true,
+		Data:       data}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		e.ShouldAddAndGetIndexes([]string{"below"})
@@ -70,8 +77,8 @@ func BenchmarkEvent_Search_Worst_Case(b *testing.B) {
 
 func BenchmarkEvent_Search_Bloom_Worst_Case(b *testing.B) {
 	e := proto.Event{
-		BloomDirty:true,
-		Data:data, }
+		BloomDirty: true,
+		Data:       data}
 	e.GenerateBloom()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -81,8 +88,8 @@ func BenchmarkEvent_Search_Bloom_Worst_Case(b *testing.B) {
 
 func BenchmarkEvent_Search(b *testing.B) {
 	e := proto.Event{
-		BloomDirty:true,
-		Data:data, }
+		BloomDirty: true,
+		Data:       data}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		e.ShouldAddAndGetIndexes([]string{"Go"})
@@ -90,8 +97,8 @@ func BenchmarkEvent_Search(b *testing.B) {
 }
 func BenchmarkEvent_Search_Bloom(b *testing.B) {
 	e := proto.Event{
-		BloomDirty:true,
-		Data:data, }
+		BloomDirty: true,
+		Data:       data}
 	e.GenerateBloom()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

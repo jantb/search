@@ -2,7 +2,6 @@ package proto
 
 import (
 	"testing"
-	"github.com/stretchr/testify/assert"
 )
 
 var data = `support
@@ -10,17 +9,23 @@ var data = `support
 
 func TestEvent_Search_match_not_match(t *testing.T) {
 	e := Event{
-		BloomDirty:true,
-		Data:data, }
-	assert.Equal(t, true, e.ShouldAddAndGetIndexes([]string{"support"}))
-	assert.Equal(t, false, e.ShouldAddAndGetIndexes([]string{"supports"}))
+		BloomDirty: true,
+		Data:       data}
+	if !e.ShouldAddAndGetIndexes([]string{"support"}) {
+		t.Fail()
+	}
+	if e.ShouldAddAndGetIndexes([]string{"supports"}) {
+		t.Fail()
+	}
 }
 
 func TestEvent_Search_field(t *testing.T) {
 	e := Event{
-		BloomDirty:true,
-		Data:data, }
+		BloomDirty: true,
+		Data:       data}
 
 	e.GenerateBloom()
-	assert.Equal(t, true, e.ShouldAddAndGetIndexes([]string{"hello>2"}))
+	if !e.ShouldAddAndGetIndexes([]string{"hello>2"}) {
+		t.Fail()
+	}
 }
