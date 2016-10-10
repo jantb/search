@@ -10,3 +10,4 @@ install:
 
 script:
     - go build -v ./...
+    - go test $(go list ./... | grep -v /vendor/)
