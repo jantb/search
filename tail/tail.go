@@ -75,13 +75,14 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			}
 			// New event found
 			if ok == 0 {
-				ok = 1
 				tt = ti
+				stopo = prevo
 				if tt.Before(time.Now().Truncate(time.Hour * 24).AddDate(0,-1,0)) {
+					key = nil
 					continue
 				}
 				text = text[len(f) + 1:]
-				stopo = prevo
+				ok = 1
 			}
 		}
 		o, err := t.Tell()
@@ -90,7 +91,10 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		}
 		prevo = o
 		// Multiline entry add to last timestamp
-		if ok == -1 || ok == 0 {
+		if (ok == -1 || ok == 0 ){
+			if key == nil {
+				continue
+			}
 			err = db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte("Events"))
 				b,_ = b.CreateBucketIfNotExists(dayKey)
