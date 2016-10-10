@@ -13,7 +13,19 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 		if strings.TrimSpace(key) == "" {
 			continue
 		}
-		if strings.Contains(key, "<") {
+		if event.BloomDirty {
+			if key[:1] == "!" {
+				if strings.Contains(event.Data, key[1:]) {
+					add = false
+					break
+				}
+			} else {
+				if !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+					add = false
+					continue
+				}
+			}
+		} else if strings.Contains(key, "<") {
 			split := strings.Split(key, "<")
 			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
 				add = false
