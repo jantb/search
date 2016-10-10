@@ -9,7 +9,7 @@ var data = `support
 
 func TestEvent_Search_match_not_match(t *testing.T) {
 	e := Event{
-		BloomDirty: false,
+		BloomDirty: true,
 		Data:       data}
 	e.GenerateBloom()
 	if !e.ShouldAddAndGetIndexes([]string{"support"}) {
@@ -22,7 +22,7 @@ func TestEvent_Search_match_not_match(t *testing.T) {
 
 func TestEvent_Search_field(t *testing.T) {
 	e := Event{
-		BloomDirty: false,
+		BloomDirty: true,
 		Data:       data}
 
 	e.GenerateBloom()
