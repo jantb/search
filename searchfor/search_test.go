@@ -46,8 +46,16 @@ func TestEvent_Search(t *testing.T) {
 	e := proto.Event{
 		BloomDirty:true,
 		Data:data, }
-	assert.Equal(t, 60, e.ShouldAddAndGetIndexes([]byte("support")))
-	assert.Equal(t, -1, e.ShouldAddAndGetIndexes([]byte("supportss")))
+	assert.Equal(t, true, e.ShouldAddAndGetIndexes([]string{"suppor"}))
+	assert.Equal(t, false, e.ShouldAddAndGetIndexes([]string{"supporss"}))
+}
+
+func TestEvent_Search_Not(t *testing.T) {
+	e := proto.Event{
+		BloomDirty:true,
+		Data:data, }
+	assert.Equal(t, false, e.ShouldAddAndGetIndexes([]string{"!support"}))
+	assert.Equal(t, true, e.ShouldAddAndGetIndexes([]string{"!supporss"}))
 }
 
 func BenchmarkEvent_Search_Worst_Case(b *testing.B) {
@@ -56,7 +64,7 @@ func BenchmarkEvent_Search_Worst_Case(b *testing.B) {
 		Data:data, }
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.ShouldAddAndGetIndexes([]byte("below"))
+		e.ShouldAddAndGetIndexes([]string{"below"})
 	}
 }
 
@@ -67,7 +75,7 @@ func BenchmarkEvent_Search_Bloom_Worst_Case(b *testing.B) {
 	e.GenerateBloom()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.ShouldAddAndGetIndexes([]byte("below"))
+		e.ShouldAddAndGetIndexes([]string{"below"})
 	}
 }
 
@@ -77,10 +85,9 @@ func BenchmarkEvent_Search(b *testing.B) {
 		Data:data, }
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.ShouldAddAndGetIndexes([]byte("Go"))
+		e.ShouldAddAndGetIndexes([]string{"Go"})
 	}
 }
-
 func BenchmarkEvent_Search_Bloom(b *testing.B) {
 	e := proto.Event{
 		BloomDirty:true,
@@ -88,6 +95,6 @@ func BenchmarkEvent_Search_Bloom(b *testing.B) {
 	e.GenerateBloom()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.ShouldAddAndGetIndexes([]byte("Go"))
+		e.ShouldAddAndGetIndexes([]string{"Go"})
 	}
 }

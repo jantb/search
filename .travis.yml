@@ -1,0 +1,12 @@
+language: go
+
+env:
+    - search_OS=linux search_ARCH=amd64
+    - search_OS=darwin search_ARCH=amd64
+    - search_OS=windows search_ARCH=amd64
+
+install:
+    - go get -d -v ./...
+
+script:
+    - go build -v ./...
