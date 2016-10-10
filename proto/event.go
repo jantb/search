@@ -20,33 +20,6 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
 			add = false
 			continue
-		} else if strings.Contains(key, "<") {
-			split := strings.Split(key, "<")
-			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-				add = false
-				continue
-			}
-			val := ""
-			for _, f := range event.Fields {
-				if split[0] == f.Key {
-					val = f.Value
-				}
-			}
-			i, err := strconv.Atoi(split[1])
-			if err != nil {
-				add = false
-				continue
-			}
-			i2, err := strconv.Atoi(val)
-			if err != nil {
-				add = false
-				continue
-			}
-			if i2 >= i {
-				add = false
-				continue
-			}
-
 		} else if strings.Contains(key, ">") {
 			split := strings.Split(key, ">")
 			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
@@ -70,6 +43,32 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 				continue
 			}
 			if i2 <= i {
+				add = false
+				continue
+			}
+		} else if strings.Contains(key, "<") {
+			split := strings.Split(key, "<")
+			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+				add = false
+				continue
+			}
+			val := ""
+			for _, f := range event.Fields {
+				if split[0] == f.Key {
+					val = f.Value
+				}
+			}
+			i, err := strconv.Atoi(split[1])
+			if err != nil {
+				add = false
+				continue
+			}
+			i2, err := strconv.Atoi(val)
+			if err != nil {
+				add = false
+				continue
+			}
+			if i2 >= i {
 				add = false
 				continue
 			}
