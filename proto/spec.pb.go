@@ -5,6 +5,8 @@
 /*
 	Package proto is a generated protocol buffer package.
 
+	protoc --gogoslick_out=plugins=grpc:. spec.proto
+
 	It is generated from these files:
 		spec.proto
 
@@ -21,23 +23,23 @@
 package proto
 
 import proto1 "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import "fmt"
+import "math"
 
-import bytes "bytes"
+import "bytes"
 
-import strings "strings"
+import "strings"
 import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import sort "sort"
-import strconv "strconv"
-import reflect "reflect"
+import "sort"
+import "strconv"
+import "reflect"
 
 import (
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
-import io "io"
+import "io"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
