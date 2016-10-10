@@ -73,6 +73,7 @@ func main() {
 
 	if *filename != "" {
 		tail.AddFileToTail(*filename, *poll, db)
+		return
 	}
 
 	tail.TailAllFiles(db)
