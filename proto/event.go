@@ -1,30 +1,25 @@
 package proto
 
 import (
-	"strconv"
-	"strings"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/utils"
+	"strconv"
+	"strings"
 )
 
-func (event *Event) ShouldAddAndGetIndexes(keys []string) (bool) {
+func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 	add := true
 	for _, key := range keys {
 		if strings.TrimSpace(key) == "" {
 			continue
-		}
-		if event.BloomDirty {
-			if key[:1] == "!" {
-				if strings.Contains(event.Data, key[1:]) {
-					add = false
-					break
-				}
-			} else {
-				if !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
-					add = false
-					continue
-				}
+		} else if key[:1] == "!" {
+			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
+				add = false
+				break
 			}
+		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+			add = false
+			continue
 		} else if strings.Contains(key, "<") {
 			split := strings.Split(key, "<")
 			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
@@ -79,14 +74,6 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) (bool) {
 				continue
 			}
 
-		} else if key[:1] == "!" {
-			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
-				add = false
-				break
-			}
-		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
-			add = false
-			continue
 		}
 	}
 	return add
@@ -122,7 +109,7 @@ func (e *Event) GenerateBloom() {
 				split := strings.Split(string(key), "=")
 				set[string(split[0])] = true
 				set[string(split[1])] = true
-				e.Fields = append(e.Fields,&Field{Key:split[0], Value:split[1]})
+				e.Fields = append(e.Fields, &Field{Key: split[0], Value: split[1]})
 			}
 		}
 		for _, key := range utils.GetBloomKeysFromLine(e.Path) {

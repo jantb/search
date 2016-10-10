@@ -2,12 +2,12 @@ package searchfor
 
 import (
 	"github.com/boltdb/bolt"
-	"log"
-	"time"
 	"github.com/golang/leveldb/bloom"
-	"strings"
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/tail"
+	"log"
+	"strings"
+	"time"
 )
 
 var Searching int32
@@ -30,11 +30,6 @@ func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool
 				noInSet = true
 				continue
 			}
-		} else if key[:1] == "!" {
-			if bloom.Filter(bloomArray).MayContain([]byte(key[1:])) {
-				noInSet = true
-				break
-			}
 		} else if !bloom.Filter(bloomArray).MayContain([]byte(key)) {
 			noInSet = true
 			break
@@ -54,7 +49,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour * 24).AddDate(0,-1,0)) ; tim = tim.Add(time.Hour * -24) {
+		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour*24).AddDate(0, -1, 0)); tim = tim.Add(time.Hour * -24) {
 
 			b := b.Bucket(tail.Int64timeToByte(tim.Unix()))
 			if b == nil {
@@ -88,11 +83,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 						if len(t) == 0 {
 							if skipItems == int64(0) {
 								count += int64(event.Lines) + int64(1)
-								eventRes := proto.EventRes{Data:event.Data,
-									Lines: event.Lines,
-									Fields:event.Fields,
-									Ts: event.Ts,
-									Path: event.Path,
+								eventRes := proto.EventRes{Data: event.Data,
+									Lines:  event.Lines,
+									Fields: event.Fields,
+									Ts:     event.Ts,
+									Path:   event.Path,
 								}
 								searchRes.Events = append(searchRes.Events, &eventRes)
 								continue
@@ -105,17 +100,17 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 							if skipItems == int64(0) {
 								if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 									searchRes.Count++
-									if count == int64(wantedItems) - 1 {
+									if count == int64(wantedItems)-1 {
 										continue
 									}
 								}
 								count += int64(event.Lines) + int64(1)
-								eventRes := proto.EventRes{Data:event.Data,
-									Lines: event.Lines,
-									Fields:event.Fields,
+								eventRes := proto.EventRes{Data: event.Data,
+									Lines:        event.Lines,
+									Fields:       event.Fields,
 									FoundAtIndex: event.GetKeyIndexes(keys),
-									Ts: event.Ts,
-									Path: event.Path,
+									Ts:           event.Ts,
+									Path:         event.Path,
 								}
 
 								searchRes.Events = append(searchRes.Events, &eventRes)
