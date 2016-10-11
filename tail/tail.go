@@ -78,11 +78,11 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			if ok == 0 {
 				tt = ti
 				stopo = prevo
-				if tt.Before(time.Now().Truncate(time.Hour*24).AddDate(0, -1, 0)) {
+				if tt.Before(time.Now().Truncate(time.Hour * 24).AddDate(0, -1, 0)) {
 					key = nil
 					continue
 				}
-				text = text[len(f)+1:]
+				text = text[len(f) + 1:]
 				ok = 1
 			}
 		}
@@ -119,7 +119,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 					log.Fatal(err)
 				}
 				b.Put(key, by)
-				regenChan <-key
+				regenChan <- key
 				return nil
 			})
 			if err != nil {
@@ -185,7 +185,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			meta.Count++
 			by, _ = meta.Marshal()
 			b.Put([]byte("Meta"), by)
-			regenChan <-key
+			regenChan <- key
 			return nil
 		})
 

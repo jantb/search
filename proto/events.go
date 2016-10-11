@@ -4,6 +4,7 @@ import (
 	"github.com/bradfitz/slice"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/utils"
+	"strings"
 )
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
@@ -25,10 +26,16 @@ func (e *Events) RegenerateBloom() {
 	for _, ev := range e.Events {
 		for _, key := range utils.GetBloomKeysFromLine(ev.Data) {
 			set[string(key)] = true
+			if strings.ContainsRune(string(key), '=') {
+				split := strings.Split(string(key), "=")
+				set[string(split[0])] = true
+				set[string(split[1])] = true
+			}
 		}
 		for _, key := range utils.GetBloomKeysFromLine(ev.Path) {
 			set[string(key)] = true
 		}
+
 		ev.GenerateBloom()
 	}
 	keys := make([][]byte, 0, len(set))
