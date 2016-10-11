@@ -1,0 +1,8 @@
+2016-10-02 20:52:39 DEBUG className:200 - This is debug message
+2016-10-02 20:52:40 DEBUG className:201 - This is debug message2
+2016-10-02 20:52:41 DEBUG className:200 - This is debug message
+2016-10-02 20:52:41 DEBUG className:201 - This is debug message2
+2016-10-02 20:53:39 DEBUG className:200 - This is debug message
+2016-10-02 20:53:40 DEBUG className:201 - ms=400
+2016-10-02 20:53:41 DEBUG className:200 - ms=20
+2016-10-02 20:53:41 DEBUG className:201 - ms=2
