@@ -14,7 +14,61 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 			continue
 		}
 		if event.BloomDirty {
-			if key[:1] == "!" {
+			if strings.Contains(key, "<") {
+				split := strings.Split(key, "<")
+				if !strings.Contains(event.Data, split[0]) {
+					add = false
+					continue
+				}
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
+				}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 >= i {
+					add = false
+					continue
+				}
+
+			} else if strings.Contains(key, ">") {
+				split := strings.Split(key, ">")
+				if !strings.Contains(event.Data, split[0]) {
+					add = false
+					continue
+				}
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
+				}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 <= i {
+					add = false
+					continue
+				}
+
+			} else if key[:1] == "!" {
 				if strings.Contains(event.Data, key[1:]) {
 					add = false
 					break
@@ -25,68 +79,70 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 					continue
 				}
 			}
-		} else if strings.Contains(key, "<") {
-			split := strings.Split(key, "<")
-			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-				add = false
-				continue
-			}
-			val := ""
-			for _, f := range event.Fields {
-				if split[0] == f.Key {
-					val = f.Value
+		} else {
+			if strings.Contains(key, "<") {
+				split := strings.Split(key, "<")
+				if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+					add = false
+					continue
 				}
-			}
-			i, err := strconv.Atoi(split[1])
-			if err != nil {
-				add = false
-				continue
-			}
-			i2, err := strconv.Atoi(val)
-			if err != nil {
-				add = false
-				continue
-			}
-			if i2 >= i {
-				add = false
-				continue
-			}
-
-		} else if strings.Contains(key, ">") {
-			split := strings.Split(key, ">")
-			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-				add = false
-				continue
-			}
-			val := ""
-			for _, f := range event.Fields {
-				if split[0] == f.Key {
-					val = f.Value
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
 				}
-			}
-			i, err := strconv.Atoi(split[1])
-			if err != nil {
-				add = false
-				continue
-			}
-			i2, err := strconv.Atoi(val)
-			if err != nil {
-				add = false
-				continue
-			}
-			if i2 <= i {
-				add = false
-				continue
-			}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 >= i {
+					add = false
+					continue
+				}
 
-		} else if key[:1] == "!" {
-			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
+			} else if strings.Contains(key, ">") {
+				split := strings.Split(key, ">")
+				if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+					add = false
+					continue
+				}
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
+				}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 <= i {
+					add = false
+					continue
+				}
+
+			} else if key[:1] == "!" {
+				if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
+					add = false
+					break
+				}
+			} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
 				add = false
-				break
+				continue
 			}
-		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
-			add = false
-			continue
 		}
 	}
 	return add

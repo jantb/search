@@ -37,4 +37,5 @@ func (e *Events) RegenerateBloom() {
 	}
 
 	e.Bloom = bloom.NewFilter(nil, keys, 10)
+	e.BloomDirty = false
 }
