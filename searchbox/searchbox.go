@@ -82,6 +82,7 @@ type EditBox struct {
 	stats          string
 	count          int64
 	textLen        int64
+	follow         int32
 }
 
 func (eb EditBox) Seek() int64 {
@@ -241,7 +242,7 @@ func (eb *EditBox) DeleteTheRestOfTheLine(db *bolt.DB) {
 	eb.Search(db)
 }
 
-func (eb *EditBox) InsertRune(r rune,db *bolt.DB) {
+func (eb *EditBox) InsertRune(r rune, db *bolt.DB) {
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	eb.text = byte_slice_insert(eb.text, eb.cursor_boffset, buf[:n])
@@ -260,7 +261,7 @@ func (eb *EditBox) ScrollDown(db *bolt.DB) {
 	eb.Search(db)
 }
 func (eb *EditBox) Follow(db *bolt.DB) {
-	eb.SeekSet(int64(0))
+	eb.follow ^= 1
 	eb.Search(db)
 }
 func New() *EditBox {
@@ -304,7 +305,7 @@ func insertNewlineAtIInString(in string, i int) (string, int) {
 	return strings.Join(split, "\n"), c
 }
 
-func redraw_all(edit_box *EditBox,db *bolt.DB) {
+func redraw_all(edit_box *EditBox, db *bolt.DB) {
 	const coldef = termbox.ColorDefault
 	termbox.Clear(coldef, coldef)
 	w, h := termbox.Size()
@@ -398,11 +399,11 @@ func Run(db *bolt.DB) {
 	go func(e *EditBox) {
 		for {
 			time.Sleep(time.Millisecond * 100)
-			if atomic.LoadInt64(&edit_box.seek) == int64(0)&& atomic.LoadInt32(&searchfor.Searching) == int32(0) && atomic.LoadInt64(&edit_box.textLen) == int64(0) {
+			if atomic.LoadInt32(&edit_box.follow) == int32(1)&& atomic.LoadInt32(&searchfor.Searching) == int32(0) && atomic.LoadInt64(&edit_box.textLen) == int64(0) {
 				searchChan <- true
-			}else{
+			} else {
 				redrawChan <- true
- 			}
+			}
 		}
 	}(edit_box)
 
@@ -436,7 +437,7 @@ func Run(db *bolt.DB) {
 				case termbox.KeyDelete, termbox.KeyCtrlD:
 					edit_box.DeleteRuneForward(db)
 				case termbox.KeyTab:
-					edit_box.InsertRune('\t',db)
+					edit_box.InsertRune('\t', db)
 				case termbox.KeyArrowUp:
 					edit_box.ScrollUp(db);
 				case termbox.KeyArrowDown:
@@ -446,7 +447,7 @@ func Run(db *bolt.DB) {
 				case termbox.KeyPgdn:
 					edit_box.ScrollDown(db);
 				case termbox.KeySpace:
-					edit_box.InsertRune(' ',db)
+					edit_box.InsertRune(' ', db)
 				case termbox.KeyCtrlG:
 					edit_box.Follow(db)
 				case termbox.KeyCtrlK:
@@ -457,7 +458,7 @@ func Run(db *bolt.DB) {
 					edit_box.MoveCursorToEndOfTheLine()
 				default:
 					if ev.Ch != 0 {
-						edit_box.InsertRune(ev.Ch,db)
+						edit_box.InsertRune(ev.Ch, db)
 					}
 				}
 			case termbox.EventError:
