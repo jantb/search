@@ -47,6 +47,10 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 	var searchRes proto.SearchRes
 	count := int64(0)
 
+	search := strings.Split(string(t), "|")
+	keys := strings.Split(search[0], " ")
+	search = search[1:]
+
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour * 24).AddDate(0, -1, 0)); tim = tim.Add(time.Hour * -24) {
@@ -68,10 +72,6 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 					if err != nil {
 						log.Fatal(err)
 					}
-
-					search := strings.Split(string(t), "|")
-					keys := strings.Split(search[0], " ")
-					search = search[1:]
 
 					if len(t) != 0 {
 						if shouldNotContinueBasedOnBucketFilter(keys, events.Bloom) {

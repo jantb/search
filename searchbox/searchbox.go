@@ -373,10 +373,14 @@ func redraw_all(edit_box *EditBox, db *bolt.DB) {
 		return nil
 	})
 	count := ""
+	searching := ""
+	if atomic.LoadInt32(&searchfor.Searching) != int32(0) {
+		searching = "Searching..."
+	}
 	if edit_box.count > 0 {
 		count = fmt.Sprintf("Count: %d", edit_box.count)
 	}
-	ns := fmt.Sprintf("%s Search: %s Events: %d", count, edit_box.stats, nodecount)
+	ns := fmt.Sprintf("%s %s Search: %s Events: %d", searching,count, edit_box.stats, nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
 	}
