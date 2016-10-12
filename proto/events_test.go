@@ -4,13 +4,13 @@ import (
 	"testing"
 )
 
-var data = `support
+var dataText = `support
 		hello=3`
 
 func TestEvent_Search_match_not_match(t *testing.T) {
 	e := Event{
-		BloomDirty: true,
-		Data:       data}
+		BloomDirty: true,}
+	e.SetData(dataText)
 	e.GenerateBloom()
 	if !e.ShouldAddAndGetIndexes([]string{"support"}) {
 		t.Fail()
@@ -22,9 +22,9 @@ func TestEvent_Search_match_not_match(t *testing.T) {
 
 func TestEvent_Search_field(t *testing.T) {
 	e := Event{
-		BloomDirty: true,
-		Data:       data}
+		BloomDirty: true,}
 
+	e.SetData(dataText)
 	e.GenerateBloom()
 	if !e.ShouldAddAndGetIndexes([]string{"hello>2"}) {
 		t.Fail()
