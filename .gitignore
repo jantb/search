@@ -26,4 +26,5 @@ _testmain.go
 .idea/
 search.iml
 search
+vendor/
 x.txt
