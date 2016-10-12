@@ -81,6 +81,7 @@ type EditBox struct {
 	cursor_coffset int // cursor offset in unicode code points
 	stats          string
 	count          int64
+	textLen        int64
 }
 
 func (eb EditBox) Seek() int64 {
@@ -220,6 +221,7 @@ func (eb *EditBox) DeleteRuneBackward(db *bolt.DB) {
 	eb.MoveCursorOneRuneBackward()
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
+	eb.textLen = int64(len(eb.text))
 	eb.Search(db)
 }
 
@@ -229,11 +231,13 @@ func (eb *EditBox) DeleteRuneForward(db *bolt.DB) {
 	}
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
+	eb.textLen = int64(len(eb.text))
 	eb.Search(db)
 }
 
 func (eb *EditBox) DeleteTheRestOfTheLine(db *bolt.DB) {
 	eb.text = eb.text[:eb.cursor_boffset]
+	eb.textLen = int64(len(eb.text))
 	eb.Search(db)
 }
 
@@ -241,6 +245,7 @@ func (eb *EditBox) InsertRune(r rune,db *bolt.DB) {
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	eb.text = byte_slice_insert(eb.text, eb.cursor_boffset, buf[:n])
+	eb.textLen = int64(len(eb.text))
 	eb.MoveCursorOneRuneForward()
 	eb.Search(db)
 }
@@ -389,12 +394,15 @@ func Run(db *bolt.DB) {
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 	searchChan := make(chan bool)
+	redrawChan := make(chan bool)
 	go func(e *EditBox) {
 		for {
 			time.Sleep(time.Millisecond * 100)
-			if atomic.LoadInt64(&edit_box.seek) == int64(0)&& atomic.LoadInt32(&searchfor.Searching) == int32(0) {
+			if atomic.LoadInt64(&edit_box.seek) == int64(0)&& atomic.LoadInt32(&searchfor.Searching) == int32(0) && atomic.LoadInt64(&edit_box.textLen) == int64(0) {
 				searchChan <- true
-			}
+			}else{
+				redrawChan <- true
+ 			}
 		}
 	}(edit_box)
 
@@ -459,6 +467,8 @@ func Run(db *bolt.DB) {
 			edit_box.count = searchRes.Count
 			edit_box.stats = searchRes.Ts
 			edit_box.events = searchRes.Events
+			redraw_all(edit_box, db)
+		case <-redrawChan:
 			redraw_all(edit_box, db)
 		case <-searchChan:
 			edit_box.Search(db)
