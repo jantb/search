@@ -81,7 +81,6 @@ type EditBox struct {
 	cursor_coffset int // cursor offset in unicode code points
 	stats          string
 	count          int64
-	textLen        int64
 	follow         int32
 }
 
@@ -222,7 +221,6 @@ func (eb *EditBox) DeleteRuneBackward(db *bolt.DB) {
 	eb.MoveCursorOneRuneBackward()
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
-	eb.textLen = int64(len(eb.text))
 	eb.Search(db)
 }
 
@@ -232,13 +230,11 @@ func (eb *EditBox) DeleteRuneForward(db *bolt.DB) {
 	}
 	_, size := eb.RuneUnderCursor()
 	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
-	eb.textLen = int64(len(eb.text))
 	eb.Search(db)
 }
 
 func (eb *EditBox) DeleteTheRestOfTheLine(db *bolt.DB) {
 	eb.text = eb.text[:eb.cursor_boffset]
-	eb.textLen = int64(len(eb.text))
 	eb.Search(db)
 }
 
@@ -246,7 +242,6 @@ func (eb *EditBox) InsertRune(r rune, db *bolt.DB) {
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
 	eb.text = byte_slice_insert(eb.text, eb.cursor_boffset, buf[:n])
-	eb.textLen = int64(len(eb.text))
 	eb.MoveCursorOneRuneForward()
 	eb.Search(db)
 }
@@ -262,6 +257,7 @@ func (eb *EditBox) ScrollDown(db *bolt.DB) {
 }
 func (eb *EditBox) Follow(db *bolt.DB) {
 	eb.follow ^= 1
+	eb.seek = int64(0)
 	eb.Search(db)
 }
 func New() *EditBox {
@@ -403,7 +399,7 @@ func Run(db *bolt.DB) {
 	go func(e *EditBox) {
 		for {
 			time.Sleep(time.Millisecond * 100)
-			if atomic.LoadInt32(&edit_box.follow) == int32(1)&& atomic.LoadInt32(&searchfor.Searching) == int32(0) && atomic.LoadInt64(&edit_box.textLen) == int64(0) {
+			if atomic.LoadInt32(&edit_box.follow) == int32(1)&& atomic.LoadInt32(&searchfor.Searching) == int32(0){
 				searchChan <- true
 			} else {
 				redrawChan <- true
