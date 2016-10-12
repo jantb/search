@@ -15,7 +15,7 @@ var Searching int32
 func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool {
 	noInSet := false
 	for _, key := range keys {
-		if strings.TrimSpace(key) == "" {
+		if strings.TrimSpace(key) == "" || key[:1] == "!" {
 			continue
 		}
 		if strings.Contains(key, "<") {

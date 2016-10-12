@@ -135,7 +135,7 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 				}
 
 			} else if key[:1] == "!" {
-				if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) {
+				if (bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.Data, key[1:]) || strings.Contains(event.Path, key[1:]))) {
 					add = false
 					break
 				}
