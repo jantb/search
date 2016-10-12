@@ -9,7 +9,7 @@ import (
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
 	for _, ev := range e.GetEvents() {
-		if data == ev.Data && ts == ev.Ts {
+		if data == ev.GetData() && ts == ev.Ts {
 			return ev, true
 		}
 	}
@@ -24,7 +24,7 @@ func (e *Events) RegenerateBloom() {
 	set := make(map[string]bool)
 
 	for _, ev := range e.Events {
-		for _, key := range utils.GetBloomKeysFromLine(ev.Data) {
+		for _, key := range utils.GetBloomKeysFromLine(ev.GetData()) {
 			set[string(key)] = true
 			if strings.ContainsRune(string(key), '=') {
 				split := strings.Split(string(key), "=")

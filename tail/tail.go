@@ -108,8 +108,8 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				}
 
 				event, _ := events.Get(prevTs, prevData)
-				event.Data += "\n" + text
-				prevData = event.Data
+				event.SetData(event.GetData() + "\n" + text)
+				prevData = event.GetData()
 				event.BloomDirty = true
 				event.Lines += 1
 				events.BloomDirty = true
@@ -130,14 +130,14 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 
 		var event = proto.Event{
 			Ts:         tt.Format(time.RFC3339),
-			Data:       text,
 			Path:       fileMonitor.Path,
 			BloomDirty: true,
 		}
+		event.SetData(text)
 
 		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
 		dayKey = Int64timeToByte(tt.Truncate(24 * time.Hour).Unix())
-		prevData = event.Data
+		prevData = event.GetData()
 		prevTs = event.Ts
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Events"))
@@ -150,7 +150,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			var events proto.Events
 			events.Unmarshal(eventsb)
 
-			_, found := events.Get(event.Ts, event.Data)
+			_, found := events.Get(event.Ts, event.GetData())
 			if found {
 				return nil
 			}

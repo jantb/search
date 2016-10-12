@@ -83,7 +83,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 						if len(t) == 0 {
 							if skipItems == int64(0) {
 								count += int64(event.Lines) + int64(1)
-								eventRes := proto.EventRes{Data: event.Data,
+								eventRes := proto.EventRes{Data: event.GetData(),
 									Lines:  event.Lines,
 									Fields: event.Fields,
 									Ts:     event.Ts,
@@ -105,7 +105,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 									}
 								}
 								count += int64(event.Lines) + int64(1)
-								eventRes := proto.EventRes{Data: event.Data,
+								eventRes := proto.EventRes{Data: event.GetData(),
 									Lines:        event.Lines,
 									Fields:       event.Fields,
 									FoundAtIndex: event.GetKeyIndexes(keys),

@@ -19,3 +19,4 @@ import:
   - termbox
 - package: google.golang.org/grpc
   version: ^1.0.2
+- package: github.com/golang/snappy

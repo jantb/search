@@ -5,6 +5,8 @@ import (
 	"github.com/jantb/search/utils"
 	"strconv"
 	"strings"
+	"github.com/golang/snappy"
+	"log"
 )
 
 func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
@@ -16,7 +18,7 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 		if event.BloomDirty {
 			if strings.Contains(key, "<") {
 				split := strings.Split(key, "<")
-				if !strings.Contains(event.Data, split[0]) {
+				if !strings.Contains(event.GetData(), split[0]) {
 					add = false
 					continue
 				}
@@ -43,7 +45,7 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 
 			} else if strings.Contains(key, ">") {
 				split := strings.Split(key, ">")
-				if !strings.Contains(event.Data, split[0]) {
+				if !strings.Contains(event.GetData(), split[0]) {
 					add = false
 					continue
 				}
@@ -69,12 +71,12 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 				}
 
 			} else if key[:1] == "!" {
-				if strings.Contains(event.Data, key[1:]) {
+				if strings.Contains(event.GetData(), key[1:]) {
 					add = false
 					break
 				}
 			} else {
-				if !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+				if !(strings.Contains(event.GetData(), key) || strings.Contains(event.Path, key)) {
 					add = false
 					continue
 				}
@@ -135,11 +137,11 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 				}
 
 			} else if key[:1] == "!" {
-				if (bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.Data, key[1:]) || strings.Contains(event.Path, key[1:]))) {
+				if (bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(event.Path, key[1:]))) {
 					add = false
 					break
 				}
-			} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.Data, key) || strings.Contains(event.Path, key)) {
+			} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(event.Path, key)) {
 				add = false
 				continue
 			}
@@ -154,8 +156,8 @@ func (event Event) GetKeyIndexes(keys []string) []int32 {
 		if key == "" {
 			continue
 		}
-		index := strings.Index(event.Data, key)
-		text := event.Data
+		index := strings.Index(event.GetData(), key)
+		text := event.GetData()
 		indexPrev := 0
 		for ; index != -1; index = strings.Index(text[indexPrev:], key) {
 			index += indexPrev
@@ -172,7 +174,7 @@ func (e *Event) GenerateBloom() {
 	if e.BloomDirty {
 		e.Fields = e.Fields[:0]
 		set := make(map[string]bool)
-		for _, key := range utils.GetBloomKeysFromLine(e.Data) {
+		for _, key := range utils.GetBloomKeysFromLine(e.GetData()) {
 			set[string(key)] = true
 			if strings.ContainsRune(string(key), '=') {
 				split := strings.Split(string(key), "=")
@@ -191,4 +193,22 @@ func (e *Event) GenerateBloom() {
 		e.Bloom = bloom.NewFilter(nil, keys, 10)
 		e.BloomDirty = false
 	}
+}
+
+var data string
+
+func (e *Event) SetData(text string) {
+	e.Data = snappy.Encode(nil, []byte(text))
+	data = text
+}
+
+func (e *Event) GetData() string {
+	if data == "" {
+		b, err := snappy.Decode(nil, e.Data)
+		if err != nil {
+			log.Panic(err)
+		}
+		data = string(b)
+	}
+	return data
 }
