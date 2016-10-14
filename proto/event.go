@@ -195,20 +195,17 @@ func (e *Event) GenerateBloom() {
 	}
 }
 
-var data string
-
 func (e *Event) SetData(text string) {
 	e.Data = snappy.Encode(nil, []byte(text))
-	data = text
 }
 
 func (e *Event) GetData() string {
-	if data == "" {
-		b, err := snappy.Decode(nil, e.Data)
-		if err != nil {
-			log.Panic(err)
-		}
-		data = string(b)
+	if len(e.Data) == 0 {
+		return ""
 	}
-	return data
+	b, err := snappy.Decode(nil, e.Data)
+	if err != nil {
+		log.Panic(err)
+	}
+	return string(b)
 }

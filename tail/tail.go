@@ -50,11 +50,10 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		ReOpen:   true,
 		Poll:     fileMonitor.Poll,
 		Logger:   tail.DiscardingLogger,
-		Location: &tail.SeekInfo{fileMonitor.Offset, os.SEEK_SET}})
+		Location: &tail.SeekInfo{Offset:fileMonitor.Offset, Whence:os.SEEK_SET}})
 	var key []byte
 	var dayKey []byte
-	var prevData string
-	var prevTs string
+	var id = int32(0)
 
 	f := ""
 	prevo := int64(0)
@@ -107,9 +106,8 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 					log.Fatal(err)
 				}
 
-				event, _ := events.Get(prevTs, prevData)
+				event, _ := events.GetById(id)
 				event.SetData(event.GetData() + "\n" + text)
-				prevData = event.GetData()
 				event.BloomDirty = true
 				event.Lines += 1
 				events.BloomDirty = true
@@ -137,8 +135,6 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 
 		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
 		dayKey = Int64timeToByte(tt.Truncate(24 * time.Hour).Unix())
-		prevData = event.GetData()
-		prevTs = event.Ts
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Events"))
 			b, _ = b.CreateBucketIfNotExists(dayKey)
@@ -150,11 +146,13 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			var events proto.Events
 			events.Unmarshal(eventsb)
 
-			_, found := events.Get(event.Ts, event.GetData())
+			_, found := events.Get(event.Ts,text)
 			if found {
 				return nil
 			}
-
+			events.Id++
+			event.Id = events.Id
+			id = events.Id
 			events.Events = append(events.Events, &event)
 			events.SortEvents()
 

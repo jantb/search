@@ -15,6 +15,14 @@ func (e *Events) Get(ts string, data string) (*Event, bool) {
 	}
 	return &Event{}, false
 }
+func (e *Events) GetById(id int32) (*Event, bool) {
+	for _, ev := range e.GetEvents() {
+		if e.Id==id {
+			return ev, true
+		}
+	}
+	return &Event{}, false
+}
 func (e *Events) SortEvents() {
 	slice.Sort(e.Events, func(i, j int) bool {
 		return e.Events[i].Ts < e.Events[j].Ts

@@ -24,6 +24,7 @@ _testmain.go
 *.prof
 .DS_Store
 .idea/
+vendor
 search.iml
 search
 x.txt
