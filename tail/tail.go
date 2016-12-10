@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"strings"
 )
 
 var regenChan = make(chan []byte, 10000)
@@ -61,6 +62,17 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	for line := range t.Lines {
 		var tt time.Time
 		text := line.Text
+		prefix := ""
+		if strings.HasPrefix(text, "INFO ") {
+			prefix = "INFO "
+
+		}
+		if strings.HasPrefix(text, "ERROR ") {
+			prefix = "ERROR "
+		}
+		if strings.HasPrefix(text, "WARN ") {
+			prefix = "WARN "
+		}
 		if f == "" {
 			f = findFormat(text)
 		}
@@ -68,6 +80,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			continue
 		}
 		var ok int
+		text = text[len(prefix):]
 		if len(text) > len(f) {
 			ti, err := time.Parse(f, text[:len(f)])
 			if err != nil {
@@ -81,7 +94,8 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 					key = nil
 					continue
 				}
-				text = text[len(f) + 1:]
+				text = prefix + text[len(f) + 1:]
+
 				ok = 1
 			}
 		}
