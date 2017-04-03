@@ -8,9 +8,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 )
 
 var regenChan = make(chan []byte, 10000)
@@ -51,7 +51,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		ReOpen:   true,
 		Poll:     fileMonitor.Poll,
 		Logger:   tail.DiscardingLogger,
-		Location: &tail.SeekInfo{Offset:fileMonitor.Offset, Whence:os.SEEK_SET}})
+		Location: &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
 	var key []byte
 	var dayKey []byte
 	var id = int32(0)
@@ -90,11 +90,11 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			if ok == 0 {
 				tt = ti
 				stopo = prevo
-				if tt.Before(time.Now().Truncate(time.Hour * 24).AddDate(0, -1, 0)) {
+				if tt.Before(time.Now().Truncate(time.Hour*24).AddDate(0, -1, 0)) {
 					key = nil
 					continue
 				}
-				text = prefix + text[len(f) + 1:]
+				text = prefix + text[len(f)+1:]
 
 				ok = 1
 			}
@@ -160,7 +160,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			var events proto.Events
 			events.Unmarshal(eventsb)
 
-			_, found := events.Get(event.Ts,text)
+			_, found := events.Get(event.Ts, text)
 			if found {
 				return nil
 			}
@@ -222,14 +222,15 @@ func findFormat(text string) string {
 	return ""
 }
 
-var formats = []string{"2006/01/02 15:04:05",
-	"2006-01-02 15:04:05.000",
-	"2006-01-02 15:04:05",
-	"2006-01-02 15:04:05.0",
-	"2006-01-02 15:04:05.00",
-	"2006-01-02 15:04:05.0000",
-	"2006-01-02 15:04:05.00000",
+var formats = []string{
 	"2006-01-02 15:04:05.000000",
+	"2006-01-02 15:04:05.00000",
+	"2006-01-02 15:04:05.0000",
+	"2006-01-02 15:04:05.000",
+	"2006-01-02 15:04:05.00",
+	"2006-01-02 15:04:05.0",
+	"2006-01-02 15:04:05",
+	"2006/01/02 15:04:05",
 	time.ANSIC,
 	time.UnixDate,
 	time.RubyDate,
