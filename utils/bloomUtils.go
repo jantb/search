@@ -14,7 +14,11 @@ func GetBloomKeysFromLine(line string)[][]byte{
 	})
 	keys := [][]byte{}
 	for _, field := range fields {
-		keys = append(keys, []byte(field))
+		f :=[]rune{}
+		for _, r := range field {
+			f = append(f, r)
+			keys = append(keys, []byte(string(f)))
+		}
 	}
 	return keys
 }
