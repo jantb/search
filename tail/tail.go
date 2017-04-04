@@ -2,15 +2,16 @@ package tail
 
 import (
 	"encoding/binary"
-	"github.com/boltdb/bolt"
-	"github.com/hpcloud/tail"
-	"github.com/jantb/search/proto"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/boltdb/bolt"
+	"github.com/hpcloud/tail"
+	"github.com/jantb/search/proto"
 )
 
 var regenChan = make(chan []byte, 10000)
@@ -82,7 +83,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		var ok int
 		text = text[len(prefix):]
 		if len(text) > len(f) {
-			ti, err := time.Parse(f, text[:len(f)])
+			ti, err := time.Parse(f, strings.Replace(text[:len(f)], ",", ".", -1))
 			if err != nil {
 				ok = -1
 			}
@@ -141,7 +142,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		}
 
 		var event = proto.Event{
-			Ts:         tt.Format(time.RFC3339),
+			Ts:         tt.Format("2006-01-02T15:04:05.999Z07:00"),
 			Path:       fileMonitor.Path,
 			BloomDirty: true,
 		}
@@ -212,8 +213,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 func findFormat(text string) string {
 	for _, format := range formats {
 		if len(text) >= len(format) {
-	           t := strings.Replace(text[:len(format)], ",", ".", -1)                                                                                                                                                                                             
-  	           _, err := time.Parse(format, t)   
+			_, err := time.Parse(format, strings.Replace(text[:len(format)], ",", ".", -1))
 			if err != nil {
 				continue
 			}

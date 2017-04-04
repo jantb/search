@@ -1,31 +1,32 @@
 package searchbox
 
 import (
-	"github.com/mattn/go-runewidth"
-	"unicode/utf8"
 	"fmt"
-	"github.com/boltdb/bolt"
-	"strings"
-	"github.com/gdamore/tcell/termbox"
-	"github.com/jantb/search/searchfor"
-	"github.com/jantb/search/proto"
-	"time"
-	"sync/atomic"
 	"os"
 	"os/signal"
+	"strings"
+	"sync/atomic"
+	"time"
+	"unicode/utf8"
+
+	"github.com/boltdb/bolt"
+	"github.com/jantb/search/proto"
+	"github.com/jantb/search/searchfor"
+	"github.com/mattn/go-runewidth"
+	"github.com/nsf/termbox-go"
 )
 
 func fill(x, y, w, h int, cell termbox.Cell) {
 	for ly := 0; ly < h; ly++ {
 		for lx := 0; lx < w; lx++ {
-			termbox.SetCell(x + lx, y + ly, cell.Ch, cell.Fg, cell.Bg)
+			termbox.SetCell(x+lx, y+ly, cell.Ch, cell.Fg, cell.Bg)
 		}
 	}
 }
 
 func rune_advance_len(r rune, pos int) int {
 	if r == '\t' {
-		return tabstop_length - pos % tabstop_length
+		return tabstop_length - pos%tabstop_length
 	}
 	return runewidth.RuneWidth(r)
 }
@@ -53,7 +54,7 @@ func byte_slice_grow(s []byte, desired_cap int) []byte {
 func byte_slice_remove(text []byte, from, to int) []byte {
 	size := to - from
 	copy(text[from:], text[to:])
-	text = text[:len(text) - size]
+	text = text[:len(text)-size]
 	return text
 }
 
@@ -61,7 +62,7 @@ func byte_slice_insert(text []byte, offset int, what []byte) []byte {
 	n := len(text) + len(what)
 	text = byte_slice_grow(text, n)
 	text = text[:n]
-	copy(text[offset + len(what):], text[offset:])
+	copy(text[offset+len(what):], text[offset:])
 	copy(text[offset:], what)
 	return text
 }
@@ -99,6 +100,7 @@ func (eb *EditBox) SeekDec() {
 		eb.seek--
 	}
 }
+
 // Draws the EditBox in the given location, 'h' is not used at the moment
 func (eb *EditBox) Draw(x, y, w, h int) {
 	eb.AdjustVOffset(w)
@@ -120,7 +122,7 @@ func (eb *EditBox) Draw(x, y, w, h int) {
 		}
 
 		if rx >= w {
-			termbox.SetCell(x + w - 1, y, '→',
+			termbox.SetCell(x+w-1, y, '→',
 				coldef, coldef)
 			break
 		}
@@ -134,16 +136,16 @@ func (eb *EditBox) Draw(x, y, w, h int) {
 				}
 
 				if rx >= 0 {
-					termbox.SetCell(x + rx, y, ' ', coldef, coldef)
+					termbox.SetCell(x+rx, y, ' ', coldef, coldef)
 				}
 			}
 		} else {
 			if rx >= 0 {
-				termbox.SetCell(x + rx, y, r, coldef, coldef)
+				termbox.SetCell(x+rx, y, r, coldef, coldef)
 			}
 			lx += runewidth.RuneWidth(r)
 		}
-		next:
+	next:
 		t = t[size:]
 	}
 
@@ -164,11 +166,11 @@ func (eb *EditBox) AdjustVOffset(width int) {
 	if eb.line_voffset != 0 {
 		threshold = width - ht
 	}
-	if eb.cursor_voffset - eb.line_voffset >= threshold {
+	if eb.cursor_voffset-eb.line_voffset >= threshold {
 		eb.line_voffset = eb.cursor_voffset + (ht - width + 1)
 	}
 
-	if eb.line_voffset != 0 && eb.cursor_voffset - eb.line_voffset < ht {
+	if eb.line_voffset != 0 && eb.cursor_voffset-eb.line_voffset < ht {
 		eb.line_voffset = eb.cursor_voffset - ht
 		if eb.line_voffset < 0 {
 			eb.line_voffset = 0
@@ -220,7 +222,7 @@ func (eb *EditBox) DeleteRuneBackward(db *bolt.DB) {
 
 	eb.MoveCursorOneRuneBackward()
 	_, size := eb.RuneUnderCursor()
-	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
+	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset+size)
 	eb.Search(db)
 }
 
@@ -229,7 +231,7 @@ func (eb *EditBox) DeleteRuneForward(db *bolt.DB) {
 		return
 	}
 	_, size := eb.RuneUnderCursor()
-	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset + size)
+	eb.text = byte_slice_remove(eb.text, eb.cursor_boffset, eb.cursor_boffset+size)
 	eb.Search(db)
 }
 
@@ -261,16 +263,14 @@ func (eb *EditBox) Follow(db *bolt.DB) {
 	eb.Search(db)
 }
 func New() *EditBox {
-	return &EditBox{
-
-	}
+	return &EditBox{}
 }
 func (eb *EditBox) Search(db *bolt.DB) {
 	_, h := termbox.Size()
 	close(eb.quitSearch)
 	eb.quitSearch = make(chan bool)
 	eb.count = 0
-	go searchfor.SearchFor(eb.text, h - 2, eb.seek, eb.eventChan, eb.quitSearch, db)
+	go searchfor.SearchFor(eb.text, h-2, eb.seek, eb.eventChan, eb.quitSearch, db)
 }
 
 func (eb *EditBox) CursorX() int {
@@ -282,7 +282,7 @@ func insertNewlineAtIInString(in string, i int) (string, int) {
 		return in, 0
 	}
 	split := strings.Split(in, "\n")
-	c := 0;
+	c := 0
 	for j := 0; j < len(split); j++ {
 		inn := split[j]
 		if len(inn) < i {
@@ -308,26 +308,26 @@ func redraw_all(edit_box *EditBox, db *bolt.DB) {
 	var edit_box_width = w
 	midy := h - 1
 	midx := 0
-	fill(midx, midy - 1, edit_box_width, 1, termbox.Cell{Ch: '─', Fg:termbox.ColorBlue})
+	fill(midx, midy-1, edit_box_width, 1, termbox.Cell{Ch: '─', Fg: termbox.ColorBlue})
 
 	edit_box.Draw(midx, midy, edit_box_width, 1)
-	termbox.SetCursor(midx + edit_box.CursorX(), midy)
+	termbox.SetCursor(midx+edit_box.CursorX(), midy)
 	previ := h - 2
 
 	for i, event := range edit_box.events {
-		offset := 21;
+		offset := 21
 		text := event.Data
 		i = previ - 2
 
 		for n := 1; n > 0; {
-			text, n = insertNewlineAtIInString(text, w - offset)
+			text, n = insertNewlineAtIInString(text, w-offset)
 			i -= n
 		}
 
 		i -= int(event.Lines)
 		previ = i
 		for index, r := range event.Ts {
-			if i < h - 2 && i >= 0 {
+			if i < h-2 && i >= 0 {
 				termbox.SetCell(index, i, r, termbox.ColorGreen, coldef)
 			}
 		}
@@ -340,12 +340,12 @@ func redraw_all(edit_box *EditBox, db *bolt.DB) {
 				pastOffset = ir + 1
 				continue
 			}
-			if i < h - 2 && i >= 0 {
+			if i < h-2 && i >= 0 {
 				x := ir + offset - pastOffset
 				termbox.SetCell(x, i, r, coldef, coldef)
 
 				for h := 0; h < len(event.FoundAtIndex); h += 2 {
-					if int32(ir) >= event.FoundAtIndex[h]&& int32(ir) < event.FoundAtIndex[h + 1] {
+					if int32(ir) >= event.FoundAtIndex[h] && int32(ir) < event.FoundAtIndex[h+1] {
 						termbox.SetCell(x, i, r, coldef, termbox.ColorRed)
 					}
 				}
@@ -354,7 +354,7 @@ func redraw_all(edit_box *EditBox, db *bolt.DB) {
 		}
 		ns := fmt.Sprintf("Source: %s", event.Path)
 		for ix, r := range ns {
-			termbox.SetCell(offset + ix, i + 1, r, termbox.ColorCyan, coldef)
+			termbox.SetCell(offset+ix, i+1, r, termbox.ColorCyan, coldef)
 		}
 
 	}
@@ -376,9 +376,9 @@ func redraw_all(edit_box *EditBox, db *bolt.DB) {
 	if edit_box.count > 0 {
 		count = fmt.Sprintf("Count: %d", edit_box.count)
 	}
-	ns := fmt.Sprintf("%s %s Search: %s Events: %d", searching,count, edit_box.stats, nodecount)
+	ns := fmt.Sprintf("%s %s Search: %s Events: %d", searching, count, edit_box.stats, nodecount)
 	for i, r := range ns {
-		termbox.SetCell(w - len(ns) + i, h - 1, r, coldef, coldef)
+		termbox.SetCell(w-len(ns)+i, h-1, r, coldef, coldef)
 	}
 	termbox.Flush()
 
@@ -399,7 +399,7 @@ func Run(db *bolt.DB) {
 	go func(e *EditBox) {
 		for {
 			time.Sleep(time.Millisecond * 100)
-			if atomic.LoadInt32(&edit_box.follow) == int32(1)&& atomic.LoadInt32(&searchfor.Searching) == int32(0){
+			if atomic.LoadInt32(&edit_box.follow) == int32(1) && atomic.LoadInt32(&searchfor.Searching) == int32(0) {
 				searchChan <- true
 			} else {
 				redrawChan <- true
@@ -419,11 +419,11 @@ func Run(db *bolt.DB) {
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, os.Kill)
 
-	mainloop:
+mainloop:
 	for {
 		select {
 		case ev := <-eventChan:
-			switch  ev.Type {
+			switch ev.Type {
 			case termbox.EventKey:
 				switch ev.Key {
 				case termbox.KeyCtrlC:
@@ -439,13 +439,13 @@ func Run(db *bolt.DB) {
 				case termbox.KeyTab:
 					edit_box.InsertRune('\t', db)
 				case termbox.KeyArrowUp:
-					edit_box.ScrollUp(db);
+					edit_box.ScrollUp(db)
 				case termbox.KeyArrowDown:
-					edit_box.ScrollDown(db);
+					edit_box.ScrollDown(db)
 				case termbox.KeyPgup:
-					edit_box.ScrollUp(db);
+					edit_box.ScrollUp(db)
 				case termbox.KeyPgdn:
-					edit_box.ScrollDown(db);
+					edit_box.ScrollDown(db)
 				case termbox.KeySpace:
 					edit_box.InsertRune(' ', db)
 				case termbox.KeyCtrlG:
@@ -478,4 +478,3 @@ func Run(db *bolt.DB) {
 		}
 	}
 }
-
