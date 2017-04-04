@@ -212,7 +212,8 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 func findFormat(text string) string {
 	for _, format := range formats {
 		if len(text) >= len(format) {
-			_, err := time.Parse(format, text[:len(format)])
+	           t := strings.Replace(text[:len(format)], ",", ".", -1)                                                                                                                                                                                             
+  	           _, err := time.Parse(format, t)   
 			if err != nil {
 				continue
 			}
@@ -223,17 +224,11 @@ func findFormat(text string) string {
 }
 
 var formats = []string{
-	"2006-01-02 15:04:05,999999",
 	"2006-01-02 15:04:05.999999",
-	"2006-01-02 15:04:05,99999",
 	"2006-01-02 15:04:05.99999",
-	"2006-01-02 15:04:05,9999",
 	"2006-01-02 15:04:05.9999",
-	"2006-01-02 15:04:05,999",
 	"2006-01-02 15:04:05.999",
-	"2006-01-02 15:04:05,99",
 	"2006-01-02 15:04:05.99",
-	"2006-01-02 15:04:05,9",
 	"2006-01-02 15:04:05.9",
 	"2006-01-02 15:04:05",
 	"2006/01/02 15:04:05",
