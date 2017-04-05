@@ -82,7 +82,7 @@ type EditBox struct {
 	cursor_coffset int // cursor offset in unicode code points
 	stats          string
 	count          int64
-	follow         int32
+	follow         atomic.Value
 }
 
 func (eb EditBox) Seek() int64 {
@@ -258,7 +258,7 @@ func (eb *EditBox) ScrollDown(db *bolt.DB) {
 	eb.Search(db)
 }
 func (eb *EditBox) Follow(db *bolt.DB) {
-	eb.follow ^= 1
+	eb.follow.Store(!eb.follow.Load().(bool))
 	eb.seek = int64(0)
 	eb.Search(db)
 }
@@ -369,14 +369,14 @@ func redraw_all(edit_box *EditBox, db *bolt.DB) {
 		return nil
 	})
 	count := ""
-	searching := ""
-	if atomic.LoadInt32(&searchfor.Searching) != int32(0) {
-		searching = "Searching..."
+	searchings := ""
+	if searchfor.Searching.Load().(bool) {
+		searchings = "Searching..."
 	}
 	if edit_box.count > 0 {
 		count = fmt.Sprintf("Count: %d", edit_box.count)
 	}
-	ns := fmt.Sprintf("%s %s Search: %s Events: %d", searching, count, edit_box.stats, nodecount)
+	ns := fmt.Sprintf("%s %s Search: %s Events: %d", searchings, count, edit_box.stats, nodecount)
 	for i, r := range ns {
 		termbox.SetCell(w-len(ns)+i, h-1, r, coldef, coldef)
 	}
@@ -395,14 +395,12 @@ func Run(db *bolt.DB) {
 	defer termbox.Close()
 	termbox.SetInputMode(termbox.InputEsc)
 	searchChan := make(chan bool)
-	redrawChan := make(chan bool)
+	redrawChan := make(chan bool, 2)
 	go func(e *EditBox) {
 		for {
-			time.Sleep(time.Millisecond * 100)
-			if atomic.LoadInt32(&edit_box.follow) == int32(1) && atomic.LoadInt32(&searchfor.Searching) == int32(0) {
+			time.Sleep(time.Millisecond * 1000)
+			if edit_box.follow.Load() == int32(1) && !searchfor.Searching.Load().(bool) {
 				searchChan <- true
-			} else {
-				redrawChan <- true
 			}
 		}
 	}(edit_box)
@@ -418,7 +416,7 @@ func Run(db *bolt.DB) {
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, os.Kill)
-
+	searchfor.Searching.Store(false)
 mainloop:
 	for {
 		select {
@@ -468,7 +466,7 @@ mainloop:
 			edit_box.count = searchRes.Count
 			edit_box.stats = searchRes.Ts
 			edit_box.events = searchRes.Events
-			redraw_all(edit_box, db)
+			redrawChan <- true
 		case <-redrawChan:
 			redraw_all(edit_box, db)
 		case <-searchChan:

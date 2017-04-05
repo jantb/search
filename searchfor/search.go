@@ -1,16 +1,18 @@
 package searchfor
 
 import (
+	"log"
+	"strings"
+	"sync/atomic"
+	"time"
+
 	"github.com/boltdb/bolt"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/tail"
-	"log"
-	"strings"
-	"time"
 )
 
-var Searching int32
+var Searching atomic.Value
 
 func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool {
 	noInSet := false
@@ -39,10 +41,8 @@ func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool
 }
 
 func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchRes, quit chan bool, db *bolt.DB) {
-	Searching = 1
-	defer func() {
-		Searching = 0
-	}()
+	Searching.Store(true)
+	defer Searching.Store(false)
 	ttt := time.Now()
 	var searchRes proto.SearchRes
 	count := int64(0)
@@ -84,10 +84,10 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 							if skipItems == int64(0) {
 								count += int64(event.Lines) + int64(1)
 								eventRes := proto.EventRes{Data: event.GetData(),
-									Lines:  event.Lines,
-									Fields: event.Fields,
-									Ts:     event.Ts,
-									Path:   event.Path,
+									Lines:                   event.Lines,
+									Fields:                  event.Fields,
+									Ts:                      event.Ts,
+									Path:                    event.Path,
 								}
 								searchRes.Events = append(searchRes.Events, &eventRes)
 								continue
@@ -100,17 +100,17 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 							if skipItems == int64(0) {
 								if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 									searchRes.Count++
-									if count == int64(wantedItems) - 1 {
+									if count == int64(wantedItems)-1 {
 										continue
 									}
 								}
 								count += int64(event.Lines) + int64(1)
 								eventRes := proto.EventRes{Data: event.GetData(),
-									Lines:        event.Lines,
-									Fields:       event.Fields,
-									FoundAtIndex: event.GetKeyIndexes(keys),
-									Ts:           event.Ts,
-									Path:         event.Path,
+									Lines:                   event.Lines,
+									Fields:                  event.Fields,
+									FoundAtIndex:            event.GetKeyIndexes(keys),
+									Ts:                      event.Ts,
+									Path:                    event.Path,
 								}
 
 								searchRes.Events = append(searchRes.Events, &eventRes)
