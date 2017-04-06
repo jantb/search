@@ -417,6 +417,7 @@ func Run(db *bolt.DB) {
 	signal.Notify(sigChan, os.Interrupt)
 	signal.Notify(sigChan, os.Kill)
 	searchfor.Searching.Store(false)
+	edit_box.follow.Store(false)
 mainloop:
 	for {
 		select {
