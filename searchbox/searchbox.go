@@ -398,8 +398,8 @@ func Run(db *bolt.DB) {
 	redrawChan := make(chan bool, 2)
 	go func(e *EditBox) {
 		for {
-			time.Sleep(time.Millisecond * 1000)
-			if edit_box.follow.Load() == int32(1) && !searchfor.Searching.Load().(bool) {
+			time.Sleep(time.Millisecond * 100)
+			if edit_box.follow.Load().(bool) && !searchfor.Searching.Load().(bool) {
 				searchChan <- true
 			}
 		}
