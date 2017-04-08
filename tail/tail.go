@@ -148,8 +148,6 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		}
 		event.SetData(text)
 
-
-
 		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
 		dayKey = Int64timeToByte(tt.Truncate(24 * time.Hour).Unix())
 		err = db.Update(func(tx *bolt.Tx) error {
@@ -266,7 +264,6 @@ func TailAllFiles(db *bolt.DB) {
 		for k, f := c.First(); k != nil; k, f = c.Next() {
 			fileMonitor := proto.FileMonitor{}
 			fileMonitor.Unmarshal(f)
-
 			go tailFile(fileMonitor, db)
 		}
 		return nil

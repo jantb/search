@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/boltdb/bolt"
-	"github.com/jantb/search/searchbox"
 	"github.com/jantb/search/tail"
+	"github.com/jantb/search/gui"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	tail.TailAllFiles(db)
-	searchbox.Run(db)
+	gui.Run(db)
 }
 
 func getDb() *bolt.DB {

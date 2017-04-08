@@ -53,15 +53,13 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour * 24).AddDate(0, -1, 0)); tim = tim.Add(time.Hour * -24) {
-
+		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour*24).AddDate(0, -1, 0)); tim = tim.Add(time.Hour * -24) {
 			b := b.Bucket(tail.Int64timeToByte(tim.Unix()))
 			if b == nil {
 				continue
 			}
 			c := b.Cursor()
 			k, v := c.Last()
-
 			for ; k != nil && count < int64(wantedItems); k, v = c.Prev() {
 				select {
 				case <-quit:
@@ -84,10 +82,10 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 							if skipItems == int64(0) {
 								count += int64(event.Lines) + int64(1)
 								eventRes := proto.EventRes{Data: event.GetData(),
-									Lines:                   event.Lines,
-									Fields:                  event.Fields,
-									Ts:                      event.Ts,
-									Path:                    event.Path,
+									Lines:  event.Lines,
+									Fields: event.Fields,
+									Ts:     event.Ts,
+									Path:   event.Path,
 								}
 								searchRes.Events = append(searchRes.Events, &eventRes)
 								continue
@@ -106,11 +104,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan proto.SearchR
 								}
 								count += int64(event.Lines) + int64(1)
 								eventRes := proto.EventRes{Data: event.GetData(),
-									Lines:                   event.Lines,
-									Fields:                  event.Fields,
-									FoundAtIndex:            event.GetKeyIndexes(keys),
-									Ts:                      event.Ts,
-									Path:                    event.Path,
+									Lines:        event.Lines,
+									Fields:       event.Fields,
+									FoundAtIndex: event.GetKeyIndexes(keys),
+									Ts:           event.Ts,
+									Path:         event.Path,
 								}
 
 								searchRes.Events = append(searchRes.Events, &eventRes)
