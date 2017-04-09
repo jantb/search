@@ -10,3 +10,5 @@ search --add <path_to_file>
 search
 ```
 Database is stored in `~/.search.db`
+
+supports `!` operator and `=` 
