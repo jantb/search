@@ -10,6 +10,7 @@ import (
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/searchfor"
 	"github.com/jroimartin/gocui"
+	"strings"
 )
 
 var db *bolt.DB
@@ -189,12 +190,12 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 				origin--
 			}
 			_, ys := vm.Size()
-			if origin > ys*2 {
+			if origin >= len(strings.Split(vm.Buffer(), "\n")) {
 				skipItems--
 				if skipItems == -1 {
 					skipItems++
 				}
-				go searchfor.SearchFor([]byte(v.Buffer()), y/2, skipItems, resChan, db)
+				go searchfor.SearchFor([]byte(v.Buffer()), ys/2, skipItems, resChan, db)
 			}
 			return nil
 		})
