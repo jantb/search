@@ -12,7 +12,6 @@ import (
 	"github.com/jantb/search/tail"
 	"github.com/jantb/search/gui"
 )
-
 var filename = flag.String("add", "", "Filename to monitor")
 var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB

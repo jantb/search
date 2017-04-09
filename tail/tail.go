@@ -91,10 +91,6 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			if ok == 0 {
 				tt = ti
 				stopo = prevo
-				if tt.Before(time.Now().Truncate(time.Hour*24).AddDate(0, -1, 0)) {
-					key = nil
-					continue
-				}
 				text = prefix + text[len(f)+1:]
 
 				ok = 1
