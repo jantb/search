@@ -27,12 +27,17 @@ func Run(d *bolt.DB) {
 
 	g.SetManagerFunc(layout)
 	g.Cursor = true
-
+	tail.Store(false)
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
+	if err := g.SetKeybinding("", gocui.KeyCtrlG, gocui.ModNone, tailf); err != nil {
+		log.Panicln(err)
+	}
+
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
+		tickerTail := time.NewTicker(1000 * time.Millisecond)
 		var count = atomic.Value{}
 		count.Store(int64(0))
 		var ts = atomic.Value{}
@@ -40,6 +45,14 @@ func Run(d *bolt.DB) {
 		var b = []byte{}
 		for {
 			select {
+			case <-tickerTail.C:
+				if tail.Load().(bool) {
+					v, _ := g.View("edit")
+					//g.Execute(reset)
+					vMain, _ := g.View("main")
+					_, y := vMain.Size()
+					go searchfor.SearchFor([]byte(v.Buffer()), y/2, 0, resChan, db)
+				}
 			case <-ticker.C:
 				g.Execute(func(g *gocui.Gui) error {
 					v, err := g.View("edit")
@@ -144,6 +157,7 @@ func layout(g *gocui.Gui) error {
 var resChan = make(chan []byte)
 var origin = 0
 var skipItems = int64(0)
+var tail = atomic.Value{}
 
 func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	switch {
@@ -236,4 +250,8 @@ func reset(g *gocui.Gui) error {
 }
 func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
+}
+func tailf(g *gocui.Gui, v *gocui.View) error {
+	tail.Store(!tail.Load().(bool))
+	return nil
 }
