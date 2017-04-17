@@ -109,8 +109,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 						skipItems--
 						continue
 					}
-					add := event.ShouldAddAndGetIndexes(keys)
-					if add {
+					if event.ShouldAddAndGetIndexes(keys) {
 						if skipItems == int64(0) {
 							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 								searchRes.Count++
