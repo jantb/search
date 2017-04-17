@@ -51,9 +51,12 @@ func Run(d *bolt.DB) {
 					//g.Execute(reset)
 					vMain, _ := g.View("main")
 					_, y := vMain.Size()
-					go searchfor.SearchFor([]byte(v.Buffer()), y/2, 0, resChan, db)
+					buffer := v.Buffer()
+					go searchfor.SearchFor([]byte(buffer), y/2, 0, resChan, db)
 				}
 			case <-ticker.C:
+				data := make([]byte, len(b))
+				copy(data, b)
 				g.Execute(func(g *gocui.Gui) error {
 					v, err := g.View("edit")
 					if err != nil {
@@ -84,7 +87,7 @@ func Run(d *bolt.DB) {
 
 					g.Execute(func(g *gocui.Gui) error {
 						var res = proto.SearchRes{}
-						err := res.Unmarshal(b)
+						err := res.Unmarshal(data)
 						if err != nil {
 							log.Panic(err)
 						}
