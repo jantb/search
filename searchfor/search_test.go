@@ -46,6 +46,7 @@ func TestEvent_Search(t *testing.T) {
 		BloomDirty: true,}
 
 	e.SetData(data)
+	e.GenerateBloom()
 	if !e.ShouldAddAndGetIndexes([]string{"suppor"}) {
 		t.Fail()
 	}
@@ -59,6 +60,7 @@ func TestEvent_Search_Not(t *testing.T) {
 		BloomDirty: true,}
 
 	e.SetData(data)
+	e.GenerateBloom()
 	if e.ShouldAddAndGetIndexes([]string{"!suppor"}) {
 		t.Fail()
 	}
