@@ -12,85 +12,57 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/hpcloud/tail"
 	"github.com/jantb/search/proto"
-	"runtime"
-	"sync/atomic"
 )
 
 var regenChan = make(chan []byte, 10000)
 var once sync.Once
-var m = make(map[string]*sync.Mutex)
-var mapLock = &sync.Mutex{}
 
 func regenerateBloom(keys chan []byte, db *bolt.DB) {
-	for i := 0; i < runtime.NumCPU(); i++ {
-		go func() {
+	for {
+		k := <-keys
+		by := []byte{}
+		db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("Events"))
+			b, _ = b.CreateBucketIfNotExists(Int64timeToByte(ByteToint64timeTo(k).Truncate(24 * time.Hour).Unix()))
+			by = b.Get(k)
+			return nil
+		})
+		var e proto.Events
+		err := e.Unmarshal(by)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if e.BloomDirty {
+			e.RegenerateBloom()
 
-			var stopper = &atomic.Value{}
-			for {
-				k := <-keys
-				mapLock.Lock()
-				var mut = &sync.Mutex{}
-				if mutex, ok := m[string(k)]; ok {
-					mut = mutex
-				} else {
-					mut = &sync.Mutex{}
-					m[string(k)] = mut
-				}
-				mapLock.Unlock()
-				by := []byte{}
-				db.Update(func(tx *bolt.Tx) error {
-					b := tx.Bucket([]byte("Events"))
-					b, _ = b.CreateBucketIfNotExists(Int64timeToByte(ByteToint64timeTo(k).Truncate(24 * time.Hour).Unix()))
-
-					by = b.Get(k)
-					return nil
-				})
-				var e proto.Events
-				err := e.Unmarshal(by)
-				if err != nil {
-					log.Fatal(err)
-				}
-				if e.BloomDirty {
-					stopper.Store(true)
-					mut.Lock()
-					mut.Unlock()
-					stopper.Store(false)
-					e.RegenerateBloom(stopper, mut)
-
-					by, err = e.Marshal()
-					if err != nil {
-						log.Fatal(err)
-					}
-					err := db.Update(func(tx *bolt.Tx) error {
-						b := tx.Bucket([]byte("Events"))
-						b = b.Bucket(Int64timeToByte(ByteToint64timeTo(k).Truncate(24 * time.Hour).Unix()))
-
-						b.Put(k, by)
-						mapLock.Lock()
-						delete(m, string(k))
-						mapLock.Unlock()
-						return nil
-					})
-					if err != nil {
-						log.Fatal(err)
-					}
-				}
-
-				if err != nil {
-					log.Fatal(err)
-				}
+			by, err = e.Marshal()
+			if err != nil {
+				log.Fatal(err)
 			}
-		}()
-	}
+			err := db.Update(func(tx *bolt.Tx) error {
+				b := tx.Bucket([]byte("Events"))
+				b = b.Bucket(Int64timeToByte(ByteToint64timeTo(k).Truncate(24 * time.Hour).Unix()))
 
+				b.Put(k, by)
+				return nil
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
-		ReOpen:   true,
-		Poll:     fileMonitor.Poll,
-		Logger:   tail.DiscardingLogger,
-		Location: &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
+		ReOpen:                                               true,
+		Poll:                                                 fileMonitor.Poll,
+		Logger:                                               tail.DiscardingLogger,
+		Location:                                             &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
 	var key []byte
 	var dayKey []byte
 	var id = int32(0)

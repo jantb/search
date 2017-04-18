@@ -2,9 +2,6 @@ package proto
 
 import (
 	"strings"
-	"sync"
-	"sync/atomic"
-
 	"github.com/bradfitz/slice"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/utils"
@@ -31,16 +28,10 @@ func (e *Events) SortEvents() {
 		return e.Events[i].Ts < e.Events[j].Ts
 	})
 }
-func (e *Events) RegenerateBloom(stopper *atomic.Value, mut *sync.Mutex) {
-	mut.Lock()
-	defer mut.Unlock()
+func (e *Events) RegenerateBloom() {
 	set := make(map[string]bool)
 
 	for _, ev := range e.Events {
-		if stopper.Load().(bool) {
-			stopper.Store(false)
-			return
-		}
 		for _, key := range utils.GetBloomKeysFromLine(ev.GetData()) {
 			set[string(key)] = true
 			if strings.ContainsRune(string(key), '=') {

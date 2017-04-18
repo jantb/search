@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -16,91 +17,158 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 		if strings.TrimSpace(key) == "" {
 			continue
 		}
-		if strings.Contains(key, "<") {
-			split := strings.Split(key, "<")
-			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-				add = false
-				continue
-			}
-			val := ""
-			for _, f := range event.Fields {
-				if split[0] == f.Key {
-					val = f.Value
+		if event.BloomDirty {
+			if strings.Contains(key, "<") {
+				split := strings.Split(key, "<")
+				if !strings.Contains(event.GetData(), split[0]) {
+					add = false
+					continue
+				}
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
+				}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 >= i {
+					add = false
+					continue
+				}
+
+			} else if strings.Contains(key, ">") {
+				split := strings.Split(key, ">")
+				if !strings.Contains(event.GetData(), split[0]) {
+					add = false
+					continue
+				}
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
+				}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 <= i {
+					add = false
+					continue
+				}
+
+			} else if key[:1] == "!" {
+				if strings.Contains(event.GetData(), key[1:]) {
+					add = false
+					break
+				}
+			} else {
+				fmt.Println(key)
+				if !(strings.Contains(event.GetData(), key) || strings.Contains(event.Path, key)) {
+					add = false
+					continue
 				}
 			}
-			i, err := strconv.Atoi(split[1])
-			if err != nil {
-				add = false
-				continue
-			}
-			i2, err := strconv.Atoi(val)
-			if err != nil {
-				add = false
-				continue
-			}
-			if i2 >= i {
-				add = false
-				continue
-			}
-
-		} else if strings.Contains(key, ">") {
-			split := strings.Split(key, ">")
-			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
-				add = false
-				continue
-			}
-			val := ""
-			for _, f := range event.Fields {
-				if split[0] == f.Key {
-					val = f.Value
+		} else if strings.Contains(key, "<") {
+				split := strings.Split(key, "<")
+				if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+					add = false
+					continue
 				}
-			}
-			i, err := strconv.Atoi(split[1])
-			if err != nil {
-				add = false
-				continue
-			}
-			i2, err := strconv.Atoi(val)
-			if err != nil {
-				add = false
-				continue
-			}
-			if i2 <= i {
-				add = false
-				continue
-			}
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
+				}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 >= i {
+					add = false
+					continue
+				}
 
-		} else if key[:1] == "!" {
-			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(event.Path, key[1:])) {
+			} else if strings.Contains(key, ">") {
+				split := strings.Split(key, ">")
+				if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+					add = false
+					continue
+				}
+				val := ""
+				for _, f := range event.Fields {
+					if split[0] == f.Key {
+						val = f.Value
+					}
+				}
+				i, err := strconv.Atoi(split[1])
+				if err != nil {
+					add = false
+					continue
+				}
+				i2, err := strconv.Atoi(val)
+				if err != nil {
+					add = false
+					continue
+				}
+				if i2 <= i {
+					add = false
+					continue
+				}
+
+			} else if key[:1] == "!" {
+				if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(event.Path, key[1:])) {
+					add = false
+					break
+				}
+			} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(event.Path, key)) {
 				add = false
-				break
+				continue
 			}
-		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(event.Path, key)) {
-			add = false
-			continue
 		}
+		return add
 	}
-	return add
-}
 
-func (event Event) GetKeyIndexes(keys []string) []int32 {
+	func(event Event) GetKeyIndexes(keys []string) []int32{
 	var keyIndexes []int32
-	for _, key := range keys {
-		if key == "" {
-			continue
-		}
-		index := strings.Index(event.GetData(), key)
-		text := event.GetData()
-		indexPrev := 0
-		for ; index != -1; index = strings.Index(text[indexPrev:], key) {
-			index += indexPrev
-			keyIndexes = append(keyIndexes, int32(index))
-			index += len(key)
-			keyIndexes = append(keyIndexes, int32(index))
-			indexPrev = index
-		}
+	for _, key := range keys{
+	if key == "" {
+		continue
 	}
-	return keyIndexes
+	index := strings.Index(event.GetData(), key)
+	text := event.GetData()
+	indexPrev := 0
+	for ; index != -1; index = strings.Index(text[indexPrev:], key) {
+		index += indexPrev
+		keyIndexes = append(keyIndexes, int32(index))
+		index += len(key)
+		keyIndexes = append(keyIndexes, int32(index))
+		indexPrev = index
+	}
+}
+return keyIndexes
 }
 
 func (e *Event) GenerateBloom() {
