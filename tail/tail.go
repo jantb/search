@@ -156,33 +156,40 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 
 		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
 		dayKey = Int64timeToByte(tt.Truncate(24 * time.Hour).Unix())
+		eventsb := []byte{}
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Events"))
 			b, _ = b.CreateBucketIfNotExists(dayKey)
-			eventsb := b.Get(key)
-			if eventsb == nil {
-				var events proto.Events
-				eventsb, _ = events.Marshal()
-			}
+			eventsb = b.Get(key)
+
+			return nil
+		});
+		if eventsb == nil {
 			var events proto.Events
-			events.Unmarshal(eventsb)
+			eventsb, _ = events.Marshal()
+		}
+		var events proto.Events
+		events.Unmarshal(eventsb)
 
-			_, found := events.Get(event.Ts, text)
-			if found {
-				return nil
-			}
-			events.Id++
-			event.Id = events.Id
-			id = events.Id
-			events.Events = append(events.Events, &event)
-			events.SortEvents()
+		_, found := events.Get(event.Ts, text)
+		if found {
+			return
+		}
+		events.Id++
+		event.Id = events.Id
+		id = events.Id
+		events.Events = append(events.Events, &event)
+		events.SortEvents()
 
-			events.BloomDirty = true
+		events.BloomDirty = true
 
-			by, err := events.Marshal()
-			if err != nil {
-				log.Panic(err)
-			}
+		by, err := events.Marshal()
+		if err != nil {
+			log.Panic(err)
+		}
+		err = db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("Events"))
+			b, _ = b.CreateBucketIfNotExists(dayKey)
 			b.Put(key, by)
 
 			fileMonitor.Offset = stopo
@@ -204,16 +211,13 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			meta.Count++
 			by, _ = meta.Marshal()
 			b.Put([]byte("Meta"), by)
-			regenChan <- key
 			return nil
-		})
+		});
+		regenChan <- key
 
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 func findFormat(text string) string {
