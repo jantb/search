@@ -64,14 +64,13 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		Logger:                                               tail.DiscardingLogger,
 		Location:                                             &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
 	var key []byte
-	var dayKey []byte
 	var id = int32(0)
-
+	var tt time.Time
 	f := ""
 	prevo := int64(0)
 	stopo := int64(0)
 	for line := range t.Lines {
-		var tt time.Time
+
 		text := line.Text
 		prefix := ""
 		if strings.HasPrefix(text, "INFO ") {
@@ -116,31 +115,17 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			if key == nil {
 				continue
 			}
-			err = db.Update(func(tx *bolt.Tx) error {
-				b := tx.Bucket([]byte("Events"))
-				b, _ = b.CreateBucketIfNotExists(dayKey)
-				by := b.Get(key)
 
-				var events proto.Events
-				err := events.Unmarshal(by)
-				if err != nil {
-					log.Fatal(err)
-				}
+			var events proto.Events
+			events.Retrieve(tt, db)
+			event, _ := events.GetById(id)
+			event.SetData(event.GetData() + "\n" + text)
+			event.BloomDirty = true
+			event.Lines += 1
+			events.BloomDirty = true
+			events.Store(db)
+			regenChan <- key
 
-				event, _ := events.GetById(id)
-				event.SetData(event.GetData() + "\n" + text)
-				event.BloomDirty = true
-				event.Lines += 1
-				events.BloomDirty = true
-
-				by, err = events.Marshal()
-				if err != nil {
-					log.Fatal(err)
-				}
-				b.Put(key, by)
-				regenChan <- key
-				return nil
-			})
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -155,21 +140,9 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		event.SetData(text)
 
 		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
-		dayKey = Int64timeToByte(tt.Truncate(24 * time.Hour).Unix())
-		eventsb := []byte{}
-		err = db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Events"))
-			b, _ = b.CreateBucketIfNotExists(dayKey)
-			eventsb = b.Get(key)
 
-			return nil
-		});
-		if eventsb == nil {
-			var events proto.Events
-			eventsb, _ = events.Marshal()
-		}
 		var events proto.Events
-		events.Unmarshal(eventsb)
+		events.Retrieve(tt, db)
 
 		_, found := events.Get(event.Ts, text)
 		if found {
@@ -180,21 +153,13 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		id = events.Id
 		events.Events = append(events.Events, &event)
 		events.SortEvents()
-
 		events.BloomDirty = true
 
-		by, err := events.Marshal()
-		if err != nil {
-			log.Panic(err)
-		}
+		events.Store(db)
 		err = db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Events"))
-			b, _ = b.CreateBucketIfNotExists(dayKey)
-			b.Put(key, by)
-
 			fileMonitor.Offset = stopo
-			b = tx.Bucket([]byte("Files"))
-			by, err = fileMonitor.Marshal()
+			b := tx.Bucket([]byte("Files"))
+			by, err := fileMonitor.Marshal()
 			if err != nil {
 				log.Fatal(err)
 			}

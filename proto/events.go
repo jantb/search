@@ -1,7 +1,12 @@
 package proto
 
 import (
+	"encoding/binary"
+	"log"
 	"strings"
+	"time"
+
+	"github.com/boltdb/bolt"
 	"github.com/bradfitz/slice"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/utils"
@@ -15,6 +20,44 @@ func (e *Events) Get(ts string, data string) (*Event, bool) {
 	}
 	return &Event{}, false
 }
+
+func (e *Events) Store(db *bolt.DB) {
+	ts, _ := time.Parse("2006-01-02T15:04:05.999Z07:00", e.Events[0].Ts)
+	key := Int64timeToByte(ts.Truncate(1 * time.Minute).Unix())
+	dayKey := Int64timeToByte(ts.Truncate(24 * time.Hour).Unix())
+	marshal, err := e.Marshal()
+	err = db.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Events"))
+		b, _ = b.CreateBucketIfNotExists(dayKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+		b.Put(key, marshal)
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+func (e *Events) Retrieve(ts time.Time, db *bolt.DB) {
+	var eventsb []byte
+
+	key := Int64timeToByte(ts.Truncate(1 * time.Minute).Unix())
+	dayKey := Int64timeToByte(ts.Truncate(24 * time.Hour).Unix())
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Events"))
+		b, _ = b.CreateBucketIfNotExists(dayKey)
+		eventsb = b.Get(key)
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(eventsb) != 0 {
+		e.Unmarshal(eventsb)
+	}
+}
+
 func (e *Events) GetById(id int32) (*Event, bool) {
 	for _, ev := range e.GetEvents() {
 		if e.Id == id {
@@ -53,4 +96,14 @@ func (e *Events) RegenerateBloom() {
 
 	e.Bloom = bloom.NewFilter(nil, keys, 10)
 	e.BloomDirty = false
+}
+
+func Int64timeToByte(i int64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(i))
+	return b
+}
+
+func ByteToint64timeTo(bytes []byte) time.Time {
+	return time.Unix(int64(binary.BigEndian.Uint64(bytes)), int64(0))
 }
