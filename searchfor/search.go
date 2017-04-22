@@ -11,6 +11,7 @@ import (
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/tail"
+	"bytes"
 )
 
 var Searching atomic.Value
@@ -73,8 +74,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 				if stop.Load().(bool) {
 					return nil
 				}
+				var buffer bytes.Buffer
+				buffer.Write(v)
+
 				var events proto.Events
-				err := events.Unmarshal(v)
+				err := events.Unmarshal(buffer.Bytes())
 				if err != nil {
 					log.Fatal(err)
 				}

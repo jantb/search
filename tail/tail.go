@@ -1,6 +1,7 @@
 package tail
 
 import (
+	"bytes"
 	"encoding/binary"
 	"log"
 	"os"
@@ -20,39 +21,12 @@ var once sync.Once
 func regenerateBloom(keys chan []byte, db *bolt.DB) {
 	for {
 		k := <-keys
-		by := []byte{}
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Events"))
-			b, _ = b.CreateBucketIfNotExists(Int64timeToByte(ByteToint64timeTo(k).Truncate(24 * time.Hour).Unix()))
-			by = b.Get(k)
-			return nil
-		})
 		var e proto.Events
-		err := e.Unmarshal(by)
-		if err != nil {
-			log.Fatal(err)
-		}
+		e.Retrieve(ByteToint64timeTo(k), db)
+
 		if e.BloomDirty {
 			e.RegenerateBloom()
-
-			by, err = e.Marshal()
-			if err != nil {
-				log.Fatal(err)
-			}
-			err := db.Update(func(tx *bolt.Tx) error {
-				b := tx.Bucket([]byte("Events"))
-				b = b.Bucket(Int64timeToByte(ByteToint64timeTo(k).Truncate(24 * time.Hour).Unix()))
-
-				b.Put(k, by)
-				return nil
-			})
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-
-		if err != nil {
-			log.Fatal(err)
+			e.Store(db)
 		}
 	}
 }
@@ -226,7 +200,10 @@ func TailAllFiles(db *bolt.DB) {
 		c := b.Cursor()
 		for k, f := c.First(); k != nil; k, f = c.Next() {
 			fileMonitor := proto.FileMonitor{}
-			fileMonitor.Unmarshal(f)
+			var buffer bytes.Buffer
+			buffer.Write(f)
+			fileMonitor.Unmarshal(buffer.Bytes())
+
 			go tailFile(fileMonitor, db)
 		}
 		return nil
@@ -246,22 +223,14 @@ func AddFileToTail(filename string, poll bool, db *bolt.DB) {
 	}
 
 	if !fi.IsDir() {
-		err = db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Files"))
-			dir, _ := filepath.Abs(filepath.Dir(filename))
-			filep := filepath.Join(dir, filepath.Base(filename))
-			fileMonitor := proto.FileMonitor{
-				Path:   filep,
-				Offset: 0,
-				Poll:   poll,
-			}
-			by, err := fileMonitor.Marshal()
-			if err != nil {
-				log.Fatal(err)
-			}
-			b.Put([]byte(filep), by)
-			return nil
-		})
+		dir, _ := filepath.Abs(filepath.Dir(filename))
+		filep := filepath.Join(dir, filepath.Base(filename))
+		fileMonitor := proto.FileMonitor{
+			Path:   filep,
+			Offset: 0,
+			Poll:   poll,
+		}
+		fileMonitor.Store(db)
 		return
 	}
 }
