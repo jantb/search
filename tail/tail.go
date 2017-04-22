@@ -70,19 +70,8 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	prevo := int64(0)
 	stopo := int64(0)
 	for line := range t.Lines {
-
 		text := line.Text
-		prefix := ""
-		if strings.HasPrefix(text, "INFO ") {
-			prefix = "INFO "
-
-		}
-		if strings.HasPrefix(text, "ERROR ") {
-			prefix = "ERROR "
-		}
-		if strings.HasPrefix(text, "WARN ") {
-			prefix = "WARN "
-		}
+		prefix := getPrefix(text)
 		if f == "" {
 			f = findFormat(text)
 		}
@@ -105,11 +94,11 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				ok = 1
 			}
 		}
-		o, err := t.Tell()
+		prevo, err = t.Tell()
 		if err != nil {
 			log.Fatal(err)
 		}
-		prevo = o
+
 		// Multiline entry add to last timestamp
 		if ok == -1 || ok == 0 {
 			if key == nil {
@@ -154,37 +143,36 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		events.Events = append(events.Events, &event)
 		events.SortEvents()
 		events.BloomDirty = true
-
 		events.Store(db)
-		err = db.Update(func(tx *bolt.Tx) error {
-			fileMonitor.Offset = stopo
-			b := tx.Bucket([]byte("Files"))
-			by, err := fileMonitor.Marshal()
-			if err != nil {
-				log.Fatal(err)
-			}
-			b.Put([]byte(fileMonitor.Path), by)
-			b = tx.Bucket([]byte("Meta"))
-			by = b.Get([]byte("Meta"))
-			if by == nil {
-				var meta proto.Meta
-				b, _ := meta.Marshal()
-				by = b
-			}
-			var meta proto.Meta
-			meta.Unmarshal(by)
-			meta.Count++
-			by, _ = meta.Marshal()
-			b.Put([]byte("Meta"), by)
-			return nil
-		});
+
+		fileMonitor.Offset = stopo
+		fileMonitor.Store(db)
 		regenChan <- key
 
+		var meta proto.Meta
+		meta.Retrieve(db)
+		meta.Count++
+		meta.Store(db)
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
 }
+
+func getPrefix(text string) (string) {
+	prefix := ""
+	if strings.HasPrefix(text, "INFO ") {
+		prefix = "INFO "
+	}
+	if strings.HasPrefix(text, "ERROR ") {
+		prefix = "ERROR "
+	}
+	if strings.HasPrefix(text, "WARN ") {
+		prefix = "WARN "
+	}
+	return prefix
+}
+
 func findFormat(text string) string {
 	for _, format := range formats {
 		if len(text) >= len(format) {

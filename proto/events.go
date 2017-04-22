@@ -10,6 +10,7 @@ import (
 	"github.com/bradfitz/slice"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/utils"
+	"bytes"
 )
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
@@ -47,7 +48,9 @@ func (e *Events) Retrieve(ts time.Time, db *bolt.DB) {
 	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		b, _ = b.CreateBucketIfNotExists(dayKey)
-		eventsb = b.Get(key)
+		var buffer bytes.Buffer
+		buffer.Write(b.Get(key))
+		eventsb = buffer.Bytes()
 		return nil
 	})
 	if err != nil {
