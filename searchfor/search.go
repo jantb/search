@@ -7,11 +7,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"bytes"
 	"github.com/boltdb/bolt"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/tail"
-	"bytes"
 )
 
 var Searching atomic.Value
@@ -44,6 +44,7 @@ func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool
 
 var stop = atomic.Value{}
 var mutex = sync.Mutex{}
+
 func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *bolt.DB) {
 	if stop.Load() == nil {
 		stop.Store(false)
@@ -63,7 +64,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour * 24).AddDate(-10, 0, 0)); tim = tim.Add(time.Hour * -24) {
+		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour*24).AddDate(-10, 0, 0)); tim = tim.Add(time.Hour * -24) {
 			b := b.Bucket(tail.Int64timeToByte(tim.Unix()))
 			if b == nil {
 				continue
@@ -97,17 +98,13 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 						if skipItems == int64(0) {
 							count += int64(event.Lines) + int64(1)
 							eventRes := proto.EventRes{Data: event.GetData(),
-								Lines:                   event.Lines,
-								Fields:                  event.Fields,
-								Ts:                      event.Ts,
-								Path:                    event.Path,
+								Lines:  event.Lines,
+								Fields: event.Fields,
+								Ts:     event.Ts,
+								Path:   event.Path,
 							}
 							searchRes.Events = append(searchRes.Events, &eventRes)
-							marshal, err := searchRes.Marshal()
-							if err != nil {
-								log.Panic(err)
-							}
-							ch <- marshal
+							send(searchRes, ch)
 							continue
 						}
 						skipItems--
@@ -123,19 +120,15 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 							}
 							count += int64(event.Lines) + int64(1)
 							eventRes := proto.EventRes{Data: event.GetData(),
-								Lines:                   event.Lines,
-								Fields:                  event.Fields,
-								FoundAtIndex:            event.GetKeyIndexes(keys),
-								Ts:                      event.Ts,
-								Path:                    event.Path,
+								Lines:        event.Lines,
+								Fields:       event.Fields,
+								FoundAtIndex: event.GetKeyIndexes(keys),
+								Ts:           event.Ts,
+								Path:         event.Path,
 							}
 
 							searchRes.Events = append(searchRes.Events, &eventRes)
-							marshal, err := searchRes.Marshal()
-							if err != nil {
-								log.Panic(err)
-							}
-							ch <- marshal
+							send(searchRes, ch)
 							continue
 						}
 						skipItems--
@@ -156,4 +149,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	}
 	ch <- marshal
 
+}
+func send(searchRes proto.SearchRes, ch chan []byte) {
+	marshal, err := searchRes.Marshal()
+	if err != nil {
+		log.Panic(err)
+	}
+	ch <- marshal
 }

@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/searchfor"
 	"github.com/jroimartin/gocui"
-	"strings"
+	"sync"
 )
 
 var db *bolt.DB
@@ -36,7 +37,9 @@ func Run(d *bolt.DB) {
 	}
 
 	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
+		var stop = atomic.Value{}
+		var mutex = sync.Mutex{}
+		ticker := time.NewTicker(500 * time.Millisecond)
 		tickerTail := time.NewTicker(1000 * time.Millisecond)
 		var count = atomic.Value{}
 		count.Store(int64(0))
@@ -48,7 +51,6 @@ func Run(d *bolt.DB) {
 			case <-tickerTail.C:
 				if tail.Load().(bool) {
 					v, _ := g.View("edit")
-					//g.Execute(reset)
 					vMain, _ := g.View("main")
 					_, y := vMain.Size()
 					buffer := v.Buffer()
@@ -57,22 +59,24 @@ func Run(d *bolt.DB) {
 			case <-ticker.C:
 				data := make([]byte, len(b))
 				copy(data, b)
+				if stop.Load() == nil {
+					stop.Store(false)
+				}
+				stop.Store(true)
+				mutex.Lock()
+				stop.Store(false)
 				g.Execute(func(g *gocui.Gui) error {
+					defer mutex.Unlock()
 					v, err := g.View("edit")
 					if err != nil {
 						return err
 					}
 
 					nodecount := int64(0)
+					var meta proto.Meta
+					meta.Retrieve(db)
+					nodecount = meta.Count
 
-					db.View(func(tx *bolt.Tx) error {
-						b := tx.Bucket([]byte("Meta"))
-						by := b.Get([]byte("Meta"))
-						var meta proto.Meta
-						meta.Unmarshal(by)
-						nodecount = meta.Count
-						return nil
-					})
 					title := ""
 					if searchfor.Searching.Load() != nil && searchfor.Searching.Load().(bool) {
 						title += "searching "
@@ -85,39 +89,46 @@ func Run(d *bolt.DB) {
 					title += fmt.Sprintf("%s %d", tS, nodecount)
 					v.Title = title
 
-					g.Execute(func(g *gocui.Gui) error {
-						var res = proto.SearchRes{}
-						err := res.Unmarshal(data)
-						if err != nil {
-							log.Panic(err)
+					var res = proto.SearchRes{}
+					err = res.Unmarshal(data)
+					if err != nil {
+						log.Panic(err)
+					}
+					v, err = g.View("main")
+					if err != nil {
+						return err
+					}
+					ts.Store(res.Ts)
+					count.Store(res.Count)
+					v.Clear()
+					for i := len(res.Events) - 1; i >= 0; i-- {
+						if stop.Load().(bool) {
+							return nil
 						}
-						v, err := g.View("main")
-						if err != nil {
-							return err
-						}
-						ts.Store(res.Ts)
-						count.Store(res.Count)
-						v.Clear()
-						for i := len(res.Events) - 1; i >= 0; i-- {
-							event := res.Events[i]
-							fmt.Fprintf(v, "\033[38;5;87m%s\033[0m ", event.Ts)
-							for i, r := range event.Data {
-								found := false
-								for h := 0; h < len(event.FoundAtIndex); h += 2 {
-									if int32(i) >= event.FoundAtIndex[h] && int32(i) < event.FoundAtIndex[h+1] {
-										fmt.Fprintf(v, "\033[48;5;1m%s\033[0m", string(r))
-										found = true
-									}
-								}
-								if !found {
-									fmt.Fprintf(v, "%s", string(r))
+						event := res.Events[i]
+						fmt.Fprintf(v, "\033[38;5;87m%s\033[0m ", event.Ts)
+						for i, r := range event.Data {
+							if stop.Load().(bool) {
+								return nil
+							}
+							s := string(r)
+							if len(s) > 100000 {
+								s = s[:100000]
+							}
+							found := false
+							for h := 0; h < len(event.FoundAtIndex); h += 2 {
+								if int32(i) >= event.FoundAtIndex[h] && int32(i) < event.FoundAtIndex[h+1] {
+									fmt.Fprintf(v, "\033[48;5;1m%s\033[0m", s)
+									found = true
 								}
 							}
-							fmt.Fprintf(v, "\n\033[38;5;8msource:%s\033[0m\n", event.Path)
+							if !found {
+								fmt.Fprintf(v, "%s", s)
+							}
 						}
+						fmt.Fprintf(v, "\n\033[38;5;8msource:%s\033[0m\n", event.Path)
+					}
 
-						return nil
-					})
 					return nil
 				})
 			case b = <-resChan:
