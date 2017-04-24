@@ -83,6 +83,14 @@ func (e *Events) SortEvents() {
 		return e.Events[i].Ts < e.Events[j].Ts
 	})
 }
+
+func (e *Events) RegenerateBloomLater(db *bolt.DB) {
+	go func(e *Events, db *bolt.DB) {
+		e.RegenerateBloom()
+		e.Store(db)
+	}(e, db)
+}
+
 func (e *Events) RegenerateBloom() {
 	set := make(map[string]bool)
 

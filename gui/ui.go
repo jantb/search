@@ -93,14 +93,21 @@ func Run(d *bolt.DB) {
 					ts.Store(res.Ts)
 					count.Store(res.Count)
 					v.Clear()
-					for i := len(res.Events) - 1; i >= 0; i-- {
-						event := res.Events[i]
+					count := 0
+					events := []*proto.EventRes{}
+					for _, value := range res.Events {
+						count += len(value.Data)
+
+						if count < 500000 {
+							events = append(events, value)
+						}
+					}
+
+					for i := len(events) - 1; i >= 0; i-- {
+						event := events[i]
 						fmt.Fprintf(v, "\033[38;5;87m%s\033[0m ", event.Ts)
 						for i, r := range event.Data {
 							s := string(r)
-							if len(s) > 10000 {
-								s = s[:10000]
-							}
 							found := false
 							for h := 0; h < len(event.FoundAtIndex); h += 2 {
 								if int32(i) >= event.FoundAtIndex[h] && int32(i) < event.FoundAtIndex[h+1] {

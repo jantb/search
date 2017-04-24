@@ -201,6 +201,9 @@ func (e *Event) GetData() string {
 	if len(e.Data) == 0 {
 		return ""
 	}
+	if len(e.Data) > 20000 {
+		e.Data =e.Data[:20000]
+	}
 	b := e.Data
 	return string(b)
 }
