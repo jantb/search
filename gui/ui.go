@@ -98,8 +98,8 @@ func Run(d *bolt.DB) {
 						fmt.Fprintf(v, "\033[38;5;87m%s\033[0m ", event.Ts)
 						for i, r := range event.Data {
 							s := string(r)
-							if len(s) > 20000 {
-								s = s[:20000]
+							if len(s) > 10000 {
+								s = s[:10000]
 							}
 							found := false
 							for h := 0; h < len(event.FoundAtIndex); h += 2 {

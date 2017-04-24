@@ -15,6 +15,8 @@ import (
 import (
 	_ "net/http/pprof"
 	"net/http"
+	time "time"
+	"encoding/json"
 )
 var filename = flag.String("add", "", "Filename to monitor")
 var poll = flag.Bool("poll", false, "use poll")
@@ -37,6 +39,25 @@ func main() {
 
 	tail.TailAllFiles(db)
 	go http.ListenAndServe(":8080", http.DefaultServeMux)
+	go func() {
+		// Grab the initial stats.
+		prev := db.Stats()
+
+		for {
+			// Wait for 10s.
+			time.Sleep(10 * time.Second)
+
+			// Grab the current stats and diff them.
+			stats := db.Stats()
+			diff := stats.Sub(&prev)
+
+			// Encode stats to JSON and print to STDERR.
+			json.NewEncoder(os.Stderr).Encode(diff)
+
+			// Save stats for the next loop.
+			prev = stats
+		}
+	}()
 	gui.Run(db)
 }
 

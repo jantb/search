@@ -93,7 +93,6 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		events.Id++
 		event.Id = events.Id
 		id = events.Id
-		event.GenerateBloom()
 		events.Events = append(events.Events, &event)
 		events.SortEvents()
 

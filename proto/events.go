@@ -1,17 +1,15 @@
 package proto
 
 import (
+	"bytes"
 	"encoding/binary"
 	"log"
-	"strings"
 	"time"
 
-	"bytes"
 	"github.com/boltdb/bolt"
 	"github.com/bradfitz/slice"
 	"github.com/golang/leveldb/bloom"
 	"github.com/golang/snappy"
-	"github.com/jantb/search/utils"
 )
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
@@ -89,18 +87,10 @@ func (e *Events) RegenerateBloom() {
 	set := make(map[string]bool)
 
 	for _, ev := range e.Events {
-		for _, key := range utils.GetBloomKeysFromLine(ev.GetData()) {
-			set[string(key)] = true
-			if strings.ContainsRune(string(key), '=') {
-				split := strings.Split(string(key), "=")
-				set[string(split[0])] = true
-				set[string(split[1])] = true
-			}
+		keys := ev.GenerateBloom()
+		for _, k := range keys {
+			set[string(k)] = true
 		}
-		for _, key := range utils.GetBloomKeysFromLine(ev.Path) {
-			set[string(key)] = true
-		}
-
 	}
 	keys := make([][]byte, 0, len(set))
 	for k := range set {
