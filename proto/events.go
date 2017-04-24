@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"github.com/boltdb/bolt"
 	"github.com/bradfitz/slice"
 	"github.com/golang/leveldb/bloom"
+	"github.com/golang/snappy"
 	"github.com/jantb/search/utils"
-	"bytes"
 )
 
 func (e *Events) Get(ts string, data string) (*Event, bool) {
@@ -23,24 +24,27 @@ func (e *Events) Get(ts string, data string) (*Event, bool) {
 }
 
 func (e *Events) Store(db *bolt.DB) {
+	if len(e.Events) == 0 {
+		return
+	}
 	ts, _ := time.Parse("2006-01-02T15:04:05.999Z07:00", e.Events[0].Ts)
 	key := Int64timeToByte(ts.Truncate(1 * time.Minute).Unix())
 	dayKey := Int64timeToByte(ts.Truncate(24 * time.Hour).Unix())
 	marshal, err := e.Marshal()
-	err = db.Batch(func(tx *bolt.Tx) error {
+	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		b, _ = b.CreateBucketIfNotExists(dayKey)
 		if err != nil {
 			log.Fatal(err)
 		}
-		b.Put(key, marshal)
+		b.Put(key, snappy.Encode(nil, marshal))
 		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 }
-func (e *Events) Retrieve(ts time.Time, db *bolt.DB) {
+func (e *Events) Retrieve(ts time.Time, db *bolt.DB) bool {
 	var eventsb []byte
 
 	key := Int64timeToByte(ts.Truncate(1 * time.Minute).Unix())
@@ -57,8 +61,15 @@ func (e *Events) Retrieve(ts time.Time, db *bolt.DB) {
 		log.Fatal(err)
 	}
 	if len(eventsb) != 0 {
-		e.Unmarshal(eventsb)
+		b, err := snappy.Decode(nil, eventsb)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		e.Unmarshal(b)
+		return true
 	}
+	return false
 }
 
 func (e *Events) GetById(id int32) (*Event, bool) {
@@ -90,7 +101,6 @@ func (e *Events) RegenerateBloom() {
 			set[string(key)] = true
 		}
 
-		ev.GenerateBloom()
 	}
 	keys := make([][]byte, 0, len(set))
 	for k := range set {

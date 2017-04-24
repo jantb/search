@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -15,34 +14,19 @@ import (
 	"github.com/jantb/search/proto"
 )
 
-var regenChan = make(chan []byte, 10000)
-var once sync.Once
-
-func regenerateBloom(keys chan []byte, db *bolt.DB) {
-	for {
-		k := <-keys
-		var e proto.Events
-		e.Retrieve(ByteToint64timeTo(k), db)
-
-		if e.BloomDirty {
-			e.RegenerateBloom()
-			e.Store(db)
-		}
-	}
-}
-
 func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
 		ReOpen:                                               true,
 		Poll:                                                 fileMonitor.Poll,
 		Logger:                                               tail.DiscardingLogger,
 		Location:                                             &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
-	var key []byte
+	key := []byte{}
 	var id = int32(0)
 	var tt time.Time
 	f := ""
 	prevo := int64(0)
 	stopo := int64(0)
+	var events proto.Events
 	for line := range t.Lines {
 		text := line.Text
 		prefix := getPrefix(text)
@@ -64,7 +48,11 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				tt = ti
 				stopo = prevo
 				text = prefix + text[len(f)+1:]
-
+				e := events
+				if !events.Retrieve(tt, db){
+					e.RegenerateBloom()
+					e.Store(db)
+				}
 				ok = 1
 			}
 		}
@@ -79,15 +67,9 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				continue
 			}
 
-			var events proto.Events
-			events.Retrieve(tt, db)
 			event, _ := events.GetById(id)
 			event.SetData(event.GetData() + "\n" + text)
-			event.BloomDirty = true
 			event.Lines += 1
-			events.BloomDirty = true
-			events.Store(db)
-			regenChan <- key
 
 			if err != nil {
 				log.Fatal(err)
@@ -104,9 +86,6 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 
 		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
 
-		var events proto.Events
-		events.Retrieve(tt, db)
-
 		_, found := events.Get(event.Ts, text)
 		if found {
 			return
@@ -114,26 +93,27 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		events.Id++
 		event.Id = events.Id
 		id = events.Id
+		event.GenerateBloom()
 		events.Events = append(events.Events, &event)
 		events.SortEvents()
-		events.BloomDirty = true
-		events.Store(db)
 
 		fileMonitor.Offset = stopo
 		fileMonitor.Store(db)
-		regenChan <- key
 
 		var meta proto.Meta
 		meta.Retrieve(db)
 		meta.Count++
 		meta.Store(db)
+
+		events.Store(db)
+
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func getPrefix(text string) (string) {
+func getPrefix(text string) string {
 	prefix := ""
 	if strings.HasPrefix(text, "INFO ") {
 		prefix = "INFO "
@@ -192,9 +172,6 @@ func ByteToint64timeTo(bytes []byte) time.Time {
 }
 
 func TailAllFiles(db *bolt.DB) {
-	once.Do(func() {
-		go regenerateBloom(regenChan, db)
-	})
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Files"))
 		c := b.Cursor()

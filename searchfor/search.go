@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"github.com/boltdb/bolt"
 	"github.com/golang/leveldb/bloom"
+	"github.com/golang/snappy"
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/tail"
 )
@@ -17,6 +18,9 @@ import (
 var Searching atomic.Value
 
 func shouldNotContinueBasedOnBucketFilter(keys []string, bloomArray []byte) bool {
+	if len(bloomArray) == 0 {
+		return false
+	}
 	noInSet := false
 	for _, key := range keys {
 		if strings.TrimSpace(key) == "" || key[:1] == "!" {
@@ -79,7 +83,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 				buffer.Write(v)
 
 				var events proto.Events
-				err := events.Unmarshal(buffer.Bytes())
+				b, err := snappy.Decode(nil, buffer.Bytes())
+				if err != nil {
+					log.Panic(err)
+				}
+				err = events.Unmarshal(b)
 				if err != nil {
 					log.Fatal(err)
 				}

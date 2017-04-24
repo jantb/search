@@ -12,6 +12,10 @@ import (
 	"github.com/jantb/search/tail"
 	"github.com/jantb/search/gui"
 )
+import (
+	_ "net/http/pprof"
+	"net/http"
+)
 var filename = flag.String("add", "", "Filename to monitor")
 var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
@@ -32,6 +36,7 @@ func main() {
 	}
 
 	tail.TailAllFiles(db)
+	go http.ListenAndServe(":8080", http.DefaultServeMux)
 	gui.Run(db)
 }
 

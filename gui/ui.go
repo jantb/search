@@ -11,7 +11,6 @@ import (
 	"github.com/jantb/search/proto"
 	"github.com/jantb/search/searchfor"
 	"github.com/jroimartin/gocui"
-	"sync"
 )
 
 var db *bolt.DB
@@ -37,10 +36,8 @@ func Run(d *bolt.DB) {
 	}
 
 	go func() {
-		var stop = atomic.Value{}
-		var mutex = sync.Mutex{}
-		ticker := time.NewTicker(500 * time.Millisecond)
-		tickerTail := time.NewTicker(1000 * time.Millisecond)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		tickerTail := time.NewTicker(50 * time.Millisecond)
 		var count = atomic.Value{}
 		count.Store(int64(0))
 		var ts = atomic.Value{}
@@ -57,20 +54,8 @@ func Run(d *bolt.DB) {
 					go searchfor.SearchFor([]byte(buffer), y/2, 0, resChan, db)
 				}
 			case <-ticker.C:
-				data := make([]byte, len(b))
-				copy(data, b)
-				if stop.Load() == nil {
-					stop.Store(false)
-				}
-				stop.Store(true)
-				mutex.Lock()
-				stop.Store(false)
 				g.Execute(func(g *gocui.Gui) error {
-					defer mutex.Unlock()
-					v, err := g.View("edit")
-					if err != nil {
-						return err
-					}
+					v, _ := g.View("edit")
 
 					nodecount := int64(0)
 					var meta proto.Meta
@@ -88,13 +73,20 @@ func Run(d *bolt.DB) {
 					tS := ts.Load().(string)
 					title += fmt.Sprintf("%s %d", tS, nodecount)
 					v.Title = title
+					return nil
+				})
 
+			case b = <-resChan:
+				data := make([]byte, len(b))
+				copy(data, b)
+
+				g.Execute(func(g *gocui.Gui) error {
 					var res = proto.SearchRes{}
 					err = res.Unmarshal(data)
 					if err != nil {
 						log.Panic(err)
 					}
-					v, err = g.View("main")
+					v, err := g.View("main")
 					if err != nil {
 						return err
 					}
@@ -102,18 +94,12 @@ func Run(d *bolt.DB) {
 					count.Store(res.Count)
 					v.Clear()
 					for i := len(res.Events) - 1; i >= 0; i-- {
-						if stop.Load().(bool) {
-							return nil
-						}
 						event := res.Events[i]
 						fmt.Fprintf(v, "\033[38;5;87m%s\033[0m ", event.Ts)
 						for i, r := range event.Data {
-							if stop.Load().(bool) {
-								return nil
-							}
 							s := string(r)
-							if len(s) > 100000 {
-								s = s[:100000]
+							if len(s) > 20000 {
+								s = s[:20000]
 							}
 							found := false
 							for h := 0; h < len(event.FoundAtIndex); h += 2 {
@@ -131,7 +117,6 @@ func Run(d *bolt.DB) {
 
 					return nil
 				})
-			case b = <-resChan:
 			}
 		}
 	}()
@@ -178,27 +163,19 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	case ch != 0 && mod == 0:
 		v.EditWrite(ch)
 		g.Execute(reset)
-		vMain, _ := g.View("main")
-		_, y := vMain.Size()
-		go searchfor.SearchFor([]byte(v.Buffer()), y/2, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
 	case key == gocui.KeySpace:
 		v.EditWrite(' ')
 		g.Execute(reset)
-		vMain, _ := g.View("main")
-		_, y := vMain.Size()
-		go searchfor.SearchFor([]byte(v.Buffer()), y/2, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		v.EditDelete(true)
 		g.Execute(reset)
-		vMain, _ := g.View("main")
-		_, y := vMain.Size()
-		go searchfor.SearchFor([]byte(v.Buffer()), y/2, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
 	case key == gocui.KeyDelete:
 		v.EditDelete(false)
 		g.Execute(reset)
-		vMain, _ := g.View("main")
-		_, y := vMain.Size()
-		go searchfor.SearchFor([]byte(v.Buffer()), y/2, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
 	case key == gocui.KeyInsert:
 		v.Overwrite = !v.Overwrite
 	case key == gocui.KeyEnter:
@@ -217,13 +194,12 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			if err != nil {
 				origin--
 			}
-			_, ys := vm.Size()
 			if origin >= len(strings.Split(vm.Buffer(), "\n")) {
 				skipItems--
 				if skipItems == -1 {
 					skipItems++
 				}
-				go searchfor.SearchFor([]byte(v.Buffer()), ys/2, skipItems, resChan, db)
+				go searchfor.SearchFor([]byte(v.Buffer()), 50, skipItems, resChan, db)
 			}
 			return nil
 		})
@@ -242,10 +218,8 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			if err != nil {
 				origin++
 			}
-			_, y := vm.Size()
 			if origin == 0 {
 				skipItems++
-				go searchfor.SearchFor([]byte(v.Buffer()), y/2, skipItems, resChan, db)
 			}
 			return nil
 		})
