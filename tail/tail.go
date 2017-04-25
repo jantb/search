@@ -21,12 +21,11 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		Logger:                                               tail.DiscardingLogger,
 		Location:                                             &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
 	key := []byte{}
-	var id = int32(0)
 	var tt time.Time
 	f := ""
 	prevo := int64(0)
 	stopo := int64(0)
-	var events proto.Events
+	var event proto.Event
 	for line := range t.Lines {
 		text := line.Text
 		prefix := getPrefix(text)
@@ -48,11 +47,23 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				tt = ti
 				stopo = prevo
 				text = prefix + text[len(f)+1:]
-				e := events
-				if !events.Retrieve(tt, db){
-					e.RegenerateBloom()
-					e.Store(db)
+
+				found := event.Exists(event.GetKey(), db)
+				if found {
+					return
 				}
+
+				event.BloomUpdate()
+
+				fileMonitor.Offset = stopo
+				fileMonitor.Store(db)
+
+				var meta proto.Meta
+				meta.Retrieve(db)
+				meta.Count++
+				meta.Store(db)
+				event.Store(db)
+				event = proto.Event{}
 				ok = 1
 			}
 		}
@@ -67,7 +78,6 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				continue
 			}
 
-			event, _ := events.GetById(id)
 			event.SetData(event.GetData() + "\n" + text)
 			event.Lines += 1
 
@@ -77,35 +87,12 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			continue
 		}
 
-		var event = proto.Event{
+		event = proto.Event{
 			Ts:         tt.Format("2006-01-02T15:04:05.999Z07:00"),
 			Path:       fileMonitor.Path,
 			BloomDirty: true,
 		}
 		event.SetData(text)
-
-		key = Int64timeToByte(tt.Truncate(1 * time.Minute).Unix())
-
-		_, found := events.Get(event.Ts, text)
-		if found {
-			return
-		}
-		events.Id++
-		event.Id = events.Id
-		event.BloomUpdate()
-		id = events.Id
-		events.Events = append(events.Events, &event)
-		events.SortEvents()
-
-		fileMonitor.Offset = stopo
-		fileMonitor.Store(db)
-
-		var meta proto.Meta
-		meta.Retrieve(db)
-		meta.Count++
-		meta.Store(db)
-
-		events.Store(db)
 
 	}
 	if err != nil {

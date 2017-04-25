@@ -9,44 +9,11 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/golang/leveldb/bloom"
 	"github.com/golang/snappy"
 	"github.com/jantb/search/proto"
-	"github.com/jantb/search/tail"
 )
 
 var Searching atomic.Value
-
-func shouldNotContinueBasedOnBucketFilter(keys []string, events proto.Events, db *bolt.DB) bool {
-	bloomArray := events.Bloom
-	if len(bloomArray) == 0 {
-		events.RegenerateBloomLater(db)
-		return false
-	}
-	noInSet := false
-	for _, key := range keys {
-		if strings.TrimSpace(key) == "" || key[:1] == "!" {
-			continue
-		}
-		if strings.Contains(key, "<") {
-			split := strings.Split(key, "<")
-			if !bloom.Filter(bloomArray).MayContain([]byte(split[0])) {
-				noInSet = true
-				continue
-			}
-		} else if strings.Contains(key, ">") {
-			split := strings.Split(key, ">")
-			if !bloom.Filter(bloomArray).MayContain([]byte(split[0])) {
-				noInSet = true
-				continue
-			}
-		} else if !bloom.Filter(bloomArray).MayContain([]byte(key)) {
-			noInSet = true
-			break
-		}
-	}
-	return noInSet
-}
 
 var stop = atomic.Value{}
 var mutex = sync.Mutex{}
@@ -70,81 +37,64 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		for tim := time.Now().Truncate(time.Hour * 24); tim.After(time.Now().Truncate(time.Hour * 24).AddDate(-10, 0, 0)); tim = tim.Add(time.Hour * -24) {
-			b := b.Bucket(tail.Int64timeToByte(tim.Unix()))
-			if b == nil {
+
+		c := b.Cursor()
+		k, v := c.Last()
+		for ; k != nil && count <= int64(wantedItems); k, v = c.Prev() {
+			if stop.Load().(bool) {
+				return nil
+			}
+			var buffer bytes.Buffer
+			buffer.Write(v)
+
+			var event proto.Event
+			b, err := snappy.Decode(nil, buffer.Bytes())
+			if err != nil {
+				log.Panic(err)
+			}
+			err = event.Unmarshal(b)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if len(t) == 0 {
+				if skipItems == int64(0) {
+					count += int64(event.Lines) + int64(1)
+					eventRes := proto.EventRes{Data: event.GetData(),
+						Lines:                   event.Lines,
+						Fields:                  event.Fields,
+						Ts:                      event.Ts,
+						Path:                    event.Path,
+					}
+					searchRes.Events = append(searchRes.Events, &eventRes)
+					send(searchRes, ch)
+					continue
+				}
+				skipItems--
 				continue
 			}
-			c := b.Cursor()
-			k, v := c.Last()
-			for ; k != nil && count <= int64(wantedItems); k, v = c.Prev() {
-				if stop.Load().(bool) {
-					return nil
-				}
-				var buffer bytes.Buffer
-				buffer.Write(v)
-
-				var events proto.Events
-				b, err := snappy.Decode(nil, buffer.Bytes())
-				if err != nil {
-					log.Panic(err)
-				}
-				err = events.Unmarshal(b)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				if len(t) != 0 {
-					if shouldNotContinueBasedOnBucketFilter(keys, events, db) {
-						continue
-					}
-				}
-				for i := len(events.Events) - 1; i >= 0 && count <= int64(wantedItems); i-- {
-					if stop.Load().(bool) {
-						return nil
-					}
-					event := events.Events[i]
-					if len(t) == 0 {
-						if skipItems == int64(0) {
-							count += int64(event.Lines) + int64(1)
-							eventRes := proto.EventRes{Data: event.GetData(),
-								Lines:                   event.Lines,
-								Fields:                  event.Fields,
-								Ts:                      event.Ts,
-								Path:                    event.Path,
-							}
-							searchRes.Events = append(searchRes.Events, &eventRes)
-							send(searchRes, ch)
+			if event.ShouldAddAndGetIndexes(keys) {
+				if skipItems == int64(0) {
+					if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
+						searchRes.Count++
+						if count == int64(wantedItems)-1 {
 							continue
 						}
-						skipItems--
-						continue
 					}
-					if event.ShouldAddAndGetIndexes(keys) {
-						if skipItems == int64(0) {
-							if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
-								searchRes.Count++
-								if count == int64(wantedItems)-1 {
-									continue
-								}
-							}
-							count += int64(event.Lines) + int64(1)
-							eventRes := proto.EventRes{Data: event.GetData(),
-								Lines:                   event.Lines,
-								Fields:                  event.Fields,
-								FoundAtIndex:            event.GetKeyIndexes(keys),
-								Ts:                      event.Ts,
-								Path:                    event.Path,
-							}
+					count += int64(event.Lines) + int64(1)
+					eventRes := proto.EventRes{Data: event.GetData(),
+						Lines:                   event.Lines,
+						Fields:                  event.Fields,
+						FoundAtIndex:            event.GetKeyIndexes(keys),
+						Ts:                      event.Ts,
+						Path:                    event.Path,
+					}
 
-							searchRes.Events = append(searchRes.Events, &eventRes)
-							send(searchRes, ch)
-							continue
-						}
-						skipItems--
-					}
+					searchRes.Events = append(searchRes.Events, &eventRes)
+					send(searchRes, ch)
+					continue
 				}
-
+				skipItems--
 			}
 		}
 		return nil

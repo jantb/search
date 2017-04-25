@@ -2,14 +2,8 @@ syntax = 'proto3';
 //protoc --gogoslick_out:. spec.proto
 package proto;
 
-message Events {
-    bytes bloom = 1;
-    repeated Event events = 2;
-    bool bloom_dirty = 3;
-    int32 id = 4;
-}
 message Event {
-    int32 id = 1;
+    bytes id = 1;
     bytes bloom = 2;
     bytes data = 3;
     int32 lines = 4;
@@ -19,6 +13,7 @@ message Event {
     bool bloom_dirty = 8;
     repeated bytes keys = 9;
 }
+
 message Field {
     string key = 1;
     string value = 2;

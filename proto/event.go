@@ -1,11 +1,16 @@
 package proto
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
+	"github.com/OneOfOne/xxhash"
+	"github.com/boltdb/bolt"
 	"github.com/golang/leveldb/bloom"
+	"github.com/golang/snappy"
 	"github.com/jantb/search/utils"
 )
 
@@ -169,8 +174,8 @@ func (event Event) GetKeyIndexes(keys []string) []int32 {
 	return keyIndexes
 }
 
-func (e *Event) GetKeys() [][]byte{
-	if len(e.Keys) != 0{
+func (e *Event) GetKeys() [][]byte {
+	if len(e.Keys) != 0 {
 		return e.Keys
 	}
 	e.Fields = e.Fields[:0]
@@ -199,17 +204,74 @@ func (e *Event) BloomUpdate() {
 	e.BloomDirty = false
 }
 
+func (e *Event) GetKey() []byte {
+	e.Id = xxhash.New64().Sum(e.Data)
+	var buffer bytes.Buffer
+	buffer.Write([]byte(e.Ts))
+	buffer.Write(e.Id)
+	return buffer.Bytes()
+}
+
 func (e *Event) SetData(text string) {
 	e.Data = []byte(text)
+	if len(e.Data) > 20000 {
+		e.Data = e.Data[:20000]
+	}
 }
 
 func (e *Event) GetData() string {
 	if len(e.Data) == 0 {
 		return ""
 	}
-	if len(e.Data) > 20000 {
-		e.Data =e.Data[:20000]
+
+	return string(e.Data)
+}
+
+func (e *Event) Store(db *bolt.DB) {
+
+	marshal, err := e.Marshal()
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Events"))
+		b.Put(e.GetKey(), snappy.Encode(nil, marshal))
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
-	b := e.Data
-	return string(b)
+}
+
+func (e *Event) Exists(key []byte, db *bolt.DB) bool {
+	found := false
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Events"))
+		found = b.Get(key) != nil
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return found
+}
+
+func (e *Event) Retrieve(key []byte, db *bolt.DB) {
+	var eventsb []byte
+
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Events"))
+		var buffer bytes.Buffer
+		buffer.Write(b.Get(key))
+		eventsb = buffer.Bytes()
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(eventsb) != 0 {
+		b, err := snappy.Decode(nil, eventsb)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		e.Unmarshal(b)
+	}
 }
