@@ -11,7 +11,7 @@ func TestEvent_Search_match_not_match(t *testing.T) {
 	e := Event{
 		BloomDirty: true,}
 	e.SetData(dataText)
-	e.GenerateBloom()
+	e.BloomUpdate()
 	if !e.ShouldAddAndGetIndexes([]string{"support"}) {
 		t.Fail()
 	}
@@ -25,7 +25,7 @@ func TestEvent_Search_field(t *testing.T) {
 		BloomDirty: true,}
 
 	e.SetData(dataText)
-	e.GenerateBloom()
+	e.BloomUpdate()
 	if !e.ShouldAddAndGetIndexes([]string{"hello>2"}) {
 		t.Fail()
 	}
