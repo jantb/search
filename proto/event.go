@@ -169,7 +169,10 @@ func (event Event) GetKeyIndexes(keys []string) []int32 {
 	return keyIndexes
 }
 
-func (e *Event) GenerateBloom() [][]byte{
+func (e *Event) GetKeys() [][]byte{
+	if len(e.Keys) != 0{
+		return e.Keys
+	}
 	e.Fields = e.Fields[:0]
 	set := make(map[string]bool)
 	for _, key := range utils.GetBloomKeysFromLine(e.GetData()) {
@@ -188,9 +191,12 @@ func (e *Event) GenerateBloom() [][]byte{
 	for k := range set {
 		keys = append(keys, []byte(k))
 	}
-	e.Bloom = bloom.NewFilter(nil, keys, 10)
-	e.BloomDirty = false
+	e.Keys = keys
 	return keys
+}
+func (e *Event) BloomUpdate() {
+	e.Bloom = bloom.NewFilter(nil, e.GetKeys(), 10)
+	e.BloomDirty = false
 }
 
 func (e *Event) SetData(text string) {

@@ -1,5 +1,5 @@
 syntax = 'proto3';
-//protoc --gogoslick_out=plugins=grpc:. spec.proto
+//protoc --gogoslick_out:. spec.proto
 package proto;
 
 message Events {
@@ -17,6 +17,7 @@ message Event {
     repeated Field fields = 6;
     string ts = 7;
     bool bloom_dirty = 8;
+    repeated bytes keys = 9;
 }
 message Field {
     string key = 1;

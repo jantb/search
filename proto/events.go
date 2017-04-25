@@ -95,7 +95,7 @@ func (e *Events) RegenerateBloom() {
 	set := make(map[string]bool)
 
 	for _, ev := range e.Events {
-		keys := ev.GenerateBloom()
+		keys := ev.GetKeys()
 		for _, k := range keys {
 			set[string(k)] = true
 		}
