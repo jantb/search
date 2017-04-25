@@ -7,7 +7,7 @@ message Event {
     bytes bloom = 2;
     bytes data = 3;
     int32 lines = 4;
-    string path = 5;
+    uint64 path = 5;
     repeated Field fields = 6;
     string ts = 7;
     bool bloom_dirty = 8;

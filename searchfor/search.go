@@ -37,7 +37,6 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-
 		c := b.Cursor()
 		k, v := c.Last()
 		for ; k != nil && count <= int64(wantedItems); k, v = c.Prev() {
@@ -64,7 +63,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 						Lines:                   event.Lines,
 						Fields:                  event.Fields,
 						Ts:                      event.Ts,
-						Path:                    event.Path,
+						Path:                    proto.GetPathFromId(proto.Itob(event.Path), db),
 					}
 					searchRes.Events = append(searchRes.Events, &eventRes)
 					send(searchRes, ch)
@@ -73,7 +72,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 				skipItems--
 				continue
 			}
-			if event.ShouldAddAndGetIndexes(keys) {
+			if event.ShouldAddAndGetIndexes(keys, db) {
 				if skipItems == int64(0) {
 					if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 						searchRes.Count++
@@ -87,7 +86,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 						Fields:                  event.Fields,
 						FoundAtIndex:            event.GetKeyIndexes(keys),
 						Ts:                      event.Ts,
-						Path:                    event.Path,
+						Path:                    proto.GetPathFromId(proto.Itob(event.Path), db),
 					}
 
 					searchRes.Events = append(searchRes.Events, &eventRes)

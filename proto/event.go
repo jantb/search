@@ -14,7 +14,7 @@ import (
 	"github.com/jantb/search/utils"
 )
 
-func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
+func (event *Event) ShouldAddAndGetIndexes(keys []string, db *bolt.DB) bool {
 	add := true
 	for _, key := range keys {
 		if strings.TrimSpace(key) == "" {
@@ -82,7 +82,7 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 				}
 			} else {
 				fmt.Println(key)
-				if !(strings.Contains(event.GetData(), key) || strings.Contains(event.Path, key)) {
+				if !(strings.Contains(event.GetData(), key) || strings.Contains(GetPathFromId(Itob(event.Path), db), key)) {
 					add = false
 					continue
 				}
@@ -142,11 +142,11 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 			}
 
 		} else if key[:1] == "!" {
-			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(event.Path, key[1:])) {
+			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(GetPathFromId(Itob(event.Path), db), key[1:])) {
 				add = false
 				break
 			}
-		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(event.Path, key)) {
+		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(GetPathFromId(Itob(event.Path), db), key)) {
 			add = false
 			continue
 		}
@@ -174,7 +174,7 @@ func (event Event) GetKeyIndexes(keys []string) []int32 {
 	return keyIndexes
 }
 
-func (e *Event) GetKeys() [][]byte {
+func (e *Event) GetKeys(db *bolt.DB) [][]byte {
 	if len(e.Keys) != 0 {
 		return e.Keys
 	}
@@ -189,7 +189,7 @@ func (e *Event) GetKeys() [][]byte {
 			e.Fields = append(e.Fields, &Field{Key: split[0], Value: split[1]})
 		}
 	}
-	for _, key := range utils.GetBloomKeysFromLine(e.Path) {
+	for _, key := range utils.GetBloomKeysFromLine(GetPathFromId(Itob(e.Path), db)) {
 		set[string(key)] = true
 	}
 	keys := make([][]byte, 0, len(set))
@@ -199,8 +199,8 @@ func (e *Event) GetKeys() [][]byte {
 	e.Keys = keys
 	return keys
 }
-func (e *Event) BloomUpdate() {
-	e.Bloom = bloom.NewFilter(nil, e.GetKeys(), 10)
+func (e *Event) BloomUpdate(db *bolt.DB) {
+	e.Bloom = bloom.NewFilter(nil, e.GetKeys(db), 10)
 	e.BloomDirty = false
 }
 
@@ -228,7 +228,6 @@ func (e *Event) GetData() string {
 }
 
 func (e *Event) Store(db *bolt.DB) {
-
 	marshal, err := e.Marshal()
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))

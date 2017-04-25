@@ -2,7 +2,6 @@ package tail
 
 import (
 	"bytes"
-	"encoding/binary"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,10 +15,10 @@ import (
 
 func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
-		ReOpen:                                               true,
-		Poll:                                                 fileMonitor.Poll,
-		Logger:                                               tail.DiscardingLogger,
-		Location:                                             &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
+		ReOpen:   true,
+		Poll:     fileMonitor.Poll,
+		Logger:   tail.DiscardingLogger,
+		Location: &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
 	key := []byte{}
 	var tt time.Time
 	f := ""
@@ -53,7 +52,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 					return
 				}
 
-				event.BloomUpdate()
+				event.BloomUpdate(db)
 
 				fileMonitor.Offset = stopo
 				fileMonitor.Store(db)
@@ -89,7 +88,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 
 		event = proto.Event{
 			Ts:         tt.Format("2006-01-02T15:04:05.999Z07:00"),
-			Path:       fileMonitor.Path,
+			Path:       proto.Btoi(proto.GetKeyToPath(fileMonitor.Path, db)),
 			BloomDirty: true,
 		}
 		event.SetData(text)
@@ -146,16 +145,6 @@ var formats = []string{
 	time.RFC1123Z,
 	time.RFC3339,
 	time.RFC3339Nano,
-}
-
-func Int64timeToByte(i int64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(i))
-	return b
-}
-
-func ByteToint64timeTo(bytes []byte) time.Time {
-	return time.Unix(int64(binary.BigEndian.Uint64(bytes)), int64(0))
 }
 
 func TailAllFiles(db *bolt.DB) {

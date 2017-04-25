@@ -9,15 +9,14 @@ import (
 	"syscall"
 
 	"github.com/boltdb/bolt"
-	"github.com/jantb/search/tail"
 	"github.com/jantb/search/gui"
+	"github.com/jantb/search/tail"
 )
 import (
-	_ "net/http/pprof"
 	"net/http"
-	time "time"
-	"encoding/json"
+	_ "net/http/pprof"
 )
+
 var filename = flag.String("add", "", "Filename to monitor")
 var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
@@ -39,25 +38,6 @@ func main() {
 
 	tail.TailAllFiles(db)
 	go http.ListenAndServe(":8080", http.DefaultServeMux)
-	go func() {
-		// Grab the initial stats.
-		prev := db.Stats()
-
-		for {
-			// Wait for 10s.
-			time.Sleep(10 * time.Second)
-
-			// Grab the current stats and diff them.
-			stats := db.Stats()
-			diff := stats.Sub(&prev)
-
-			// Encode stats to JSON and print to STDERR.
-			json.NewEncoder(os.Stderr).Encode(diff)
-
-			// Save stats for the next loop.
-			prev = stats
-		}
-	}()
 	gui.Run(db)
 }
 
@@ -77,6 +57,7 @@ func getDb() *bolt.DB {
 		tx.CreateBucketIfNotExists([]byte("Events"))
 		tx.CreateBucketIfNotExists([]byte("Files"))
 		tx.CreateBucketIfNotExists([]byte("Meta"))
+		tx.CreateBucketIfNotExists([]byte("FilesPathToId"))
 		return nil
 	})
 	if err != nil {
