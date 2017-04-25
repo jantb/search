@@ -228,10 +228,33 @@ func (e *Event) GetData() string {
 }
 
 func (e *Event) Store(db *bolt.DB) {
+	found := false
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Data"))
+		found = b.Get(e.Id) != nil
+		return nil
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !found {
+		err = db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("Data"))
+			b.Put(e.Id, e.Data)
+			return nil
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	key := e.GetKey()
+	e.Data = []byte{}
 	marshal, err := e.Marshal()
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		b.Put(e.GetKey(), snappy.Encode(nil, marshal))
+		b.Put(key, snappy.Encode(nil, marshal))
 		return nil
 	})
 	if err != nil {
@@ -272,5 +295,15 @@ func (e *Event) Retrieve(key []byte, db *bolt.DB) {
 		}
 
 		e.Unmarshal(b)
+		err = db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("Data"))
+			var buffer bytes.Buffer
+			buffer.Write(b.Get(key))
+			e.Data = buffer.Bytes()
+			return nil
+		})
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 }

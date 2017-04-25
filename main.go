@@ -55,6 +55,7 @@ func getDb() *bolt.DB {
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		tx.CreateBucketIfNotExists([]byte("Events"))
+		tx.CreateBucketIfNotExists([]byte("Data"))
 		tx.CreateBucketIfNotExists([]byte("Files"))
 		tx.CreateBucketIfNotExists([]byte("Meta"))
 		tx.CreateBucketIfNotExists([]byte("FilesPathToId"))

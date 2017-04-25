@@ -37,6 +37,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
+		d := tx.Bucket([]byte("Data"))
 		c := b.Cursor()
 		k, v := c.Last()
 		for ; k != nil && count <= int64(wantedItems); k, v = c.Prev() {
@@ -55,7 +56,9 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			if err != nil {
 				log.Fatal(err)
 			}
-
+			var bufferD bytes.Buffer
+			bufferD.Write(d.Get(event.Id))
+			event.Data = bufferD.Bytes()
 			if len(t) == 0 {
 				if skipItems == int64(0) {
 					count += int64(event.Lines) + int64(1)
