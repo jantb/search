@@ -46,7 +46,7 @@ func TestEvent_Search(t *testing.T) {
 		BloomDirty: true,}
 
 	e.SetData(data)
-	e.GenerateBloom()
+	e.BloomUpdate()
 	if !e.ShouldAddAndGetIndexes([]string{"suppor"}) {
 		t.Fail()
 	}
@@ -60,7 +60,7 @@ func TestEvent_Search_Not(t *testing.T) {
 		BloomDirty: true,}
 
 	e.SetData(data)
-	e.GenerateBloom()
+	e.BloomUpdate()
 	if e.ShouldAddAndGetIndexes([]string{"!suppor"}) {
 		t.Fail()
 	}
@@ -85,7 +85,7 @@ func BenchmarkEvent_Search_Bloom_Worst_Case(b *testing.B) {
 		BloomDirty: true,}
 
 	e.SetData(data)
-	e.GenerateBloom()
+	e.BloomUpdate()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		e.ShouldAddAndGetIndexes([]string{"below"})
@@ -107,7 +107,7 @@ func BenchmarkEvent_Search_Bloom(b *testing.B) {
 		BloomDirty: true,}
 
 	e.SetData(data)
-	e.GenerateBloom()
+	e.BloomUpdate()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		e.ShouldAddAndGetIndexes([]string{"Go"})
