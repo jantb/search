@@ -10,7 +10,6 @@ message Event {
     uint64 path = 5;
     repeated Field fields = 6;
     string ts = 7;
-    repeated bytes keys = 8;
 }
 
 message Data {

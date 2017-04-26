@@ -107,9 +107,6 @@ func (event Event) GetKeyIndexes(keys []string) []int32 {
 }
 
 func (e *Event) GetKeys(db *bolt.DB) [][]byte {
-	if len(e.Keys) != 0 {
-		return e.Keys
-	}
 	e.Fields = e.Fields[:0]
 	set := make(map[string]bool)
 	for _, key := range utils.GetBloomKeysFromLine(e.GetData()) {
@@ -128,7 +125,6 @@ func (e *Event) GetKeys(db *bolt.DB) [][]byte {
 	for k := range set {
 		keys = append(keys, []byte(k))
 	}
-	e.Keys = keys
 	return keys
 }
 func (e *Event) BloomUpdate(db *bolt.DB) {
