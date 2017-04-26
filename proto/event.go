@@ -160,7 +160,7 @@ func (e *Event) GetData() string {
 
 func (e *Event) Store(db *bolt.DB) {
 	found := false
-	err := db.Update(func(tx *bolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Data"))
 		found = b.Get(e.Id) != nil
 		return nil
