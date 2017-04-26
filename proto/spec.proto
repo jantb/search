@@ -10,8 +10,11 @@ message Event {
     uint64 path = 5;
     repeated Field fields = 6;
     string ts = 7;
-    bool bloom_dirty = 8;
-    repeated bytes keys = 9;
+    repeated bytes keys = 8;
+}
+
+message Data {
+
 }
 
 message Field {

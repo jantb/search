@@ -2,7 +2,6 @@ package proto
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -20,74 +19,7 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string, db *bolt.DB) bool {
 		if strings.TrimSpace(key) == "" {
 			continue
 		}
-		if event.BloomDirty {
-			if strings.Contains(key, "<") {
-				split := strings.Split(key, "<")
-				if !strings.Contains(event.GetData(), split[0]) {
-					add = false
-					continue
-				}
-				val := ""
-				for _, f := range event.Fields {
-					if split[0] == f.Key {
-						val = f.Value
-					}
-				}
-				i, err := strconv.Atoi(split[1])
-				if err != nil {
-					add = false
-					continue
-				}
-				i2, err := strconv.Atoi(val)
-				if err != nil {
-					add = false
-					continue
-				}
-				if i2 >= i {
-					add = false
-					continue
-				}
-
-			} else if strings.Contains(key, ">") {
-				split := strings.Split(key, ">")
-				if !strings.Contains(event.GetData(), split[0]) {
-					add = false
-					continue
-				}
-				val := ""
-				for _, f := range event.Fields {
-					if split[0] == f.Key {
-						val = f.Value
-					}
-				}
-				i, err := strconv.Atoi(split[1])
-				if err != nil {
-					add = false
-					continue
-				}
-				i2, err := strconv.Atoi(val)
-				if err != nil {
-					add = false
-					continue
-				}
-				if i2 <= i {
-					add = false
-					continue
-				}
-
-			} else if key[:1] == "!" {
-				if strings.Contains(event.GetData(), key[1:]) {
-					add = false
-					break
-				}
-			} else {
-				fmt.Println(key)
-				if !(strings.Contains(event.GetData(), key) || strings.Contains(GetPathFromId(Itob(event.Path), db), key)) {
-					add = false
-					continue
-				}
-			}
-		} else if strings.Contains(key, "<") {
+		if strings.Contains(key, "<") {
 			split := strings.Split(key, "<")
 			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
 				add = false
@@ -201,7 +133,6 @@ func (e *Event) GetKeys(db *bolt.DB) [][]byte {
 }
 func (e *Event) BloomUpdate(db *bolt.DB) {
 	e.Bloom = bloom.NewFilter(nil, e.GetKeys(db), 10)
-	e.BloomDirty = false
 }
 
 func (e *Event) GetKey() []byte {

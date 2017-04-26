@@ -89,7 +89,6 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		event = proto.Event{
 			Ts:         tt.Format("2006-01-02T15:04:05.999Z07:00"),
 			Path:       proto.Btoi(proto.GetKeyToPath(fileMonitor.Path, db)),
-			BloomDirty: true,
 		}
 		event.SetData(text)
 
