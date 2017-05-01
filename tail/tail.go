@@ -80,7 +80,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		}
 
 		event = proto.Event{
-			Ts:   tt.Format("2006-01-02T15:04:05.999Z07:00"),
+			Ts:   uint64(tt.UnixNano()),
 			D:    &proto.Data{
 				Path:fileMonitor.Path,
 			},

@@ -4,7 +4,7 @@ package proto;
 
 message Event {
     bytes data = 3;
-    string ts = 7;
+    uint64 ts = 7;
     Data d = 8;
 }
 
@@ -14,6 +14,7 @@ message Data {
     int32 lines = 3;
     string path = 4;
     repeated Field fields = 5;
+    repeated int32 foundAtIndex = 6 [packed=true];
 }
 
 message Field {
@@ -42,7 +43,7 @@ message EventRes {
     string data = 1;
     int32 lines = 2;
     repeated Field fields = 3;
-    repeated int32 foundAtIndex = 4;
+    repeated int32 foundAtIndex = 4 [packed=true];
     string ts = 5;
     string path = 6;
 }

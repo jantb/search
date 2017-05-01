@@ -168,19 +168,19 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	case ch != 0 && mod == 0:
 		v.EditWrite(ch)
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 100, 0, resChan, db)
 	case key == gocui.KeySpace:
 		v.EditWrite(' ')
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 100, 0, resChan, db)
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		v.EditDelete(true)
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 100, 0, resChan, db)
 	case key == gocui.KeyDelete:
 		v.EditDelete(false)
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 100, 0, resChan, db)
 	case key == gocui.KeyInsert:
 		v.Overwrite = !v.Overwrite
 

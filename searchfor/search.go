@@ -47,7 +47,6 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 		uniqueSummary = uniqueSummary || strings.TrimSpace(value) == "unique"
 	}
 
-
 	lru, err := simplelru.NewLRU(1000, func(key interface{}, value interface{}) {})
 	lru2, err := simplelru.NewLRU(1000, func(key interface{}, value interface{}) {})
 	if err != nil {
@@ -77,7 +76,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 
 			if add {
 				if skipItems == int64(0) {
-					if uniqueSummary && !first{
+					if uniqueSummary && !first {
 						continue
 					}
 					if len(search) > 0 && countSummary {
@@ -90,13 +89,14 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 					if add {
 						getData(d, &event, lru)
 					}
-					count ++
+					count++
+
 					eventRes := proto.EventRes{Data: event.GetData(),
-						Lines:                   event.GetLines(),
-						Fields:                  event.D.Fields,
-						FoundAtIndex:            event.GetKeyIndexes(keys),
-						Ts:                      event.Ts,
-						Path:                    event.D.Path,
+						Lines:        event.GetLines(),
+						Fields:       event.D.Fields,
+						FoundAtIndex: event.GetKeyIndexes(keys),
+						Ts:           time.Unix(0, int64(event.Ts)).Format("2006-01-02T15:04:05.999Z07:00"),
+						Path:         event.D.Path,
 					}
 
 					searchRes.Events = append(searchRes.Events, &eventRes)
@@ -119,7 +119,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	ch <- marshal
 
 }
-func addevent(d *bolt.Bucket,lru, lru2 *simplelru.LRU, event *proto.Event, keys []string) (add bool, first bool) {
+func addevent(d *bolt.Bucket, lru, lru2 *simplelru.LRU, event *proto.Event, keys []string) (add bool, first bool) {
 	r, f := lru2.Get(string(event.Data))
 	if !f {
 		getData(d, event, lru)

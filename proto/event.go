@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"encoding/binary"
 	"log"
 	"strconv"
 	"strings"
@@ -85,22 +86,27 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 	return add
 }
 
-func (event Event) GetKeyIndexes(keys []string) []int32 {
+func (event *Event) GetKeyIndexes(keys []string) []int32 {
 	var keyIndexes []int32
-	for _, key := range keys {
-		if key == "" {
-			continue
+	if len(event.D.FoundAtIndex) == 0 {
+		for _, key := range keys {
+			if key == "" {
+				continue
+			}
+			text := event.GetData()
+			index := strings.Index(text, key)
+			indexPrev := 0
+			for ; index != -1; index = strings.Index(text[indexPrev:], key) {
+				index += indexPrev
+				keyIndexes = append(keyIndexes, int32(index))
+				index += len(key)
+				keyIndexes = append(keyIndexes, int32(index))
+				indexPrev = index
+			}
 		}
-		index := strings.Index(event.GetData(), key)
-		text := event.GetData()
-		indexPrev := 0
-		for ; index != -1; index = strings.Index(text[indexPrev:], key) {
-			index += indexPrev
-			keyIndexes = append(keyIndexes, int32(index))
-			index += len(key)
-			keyIndexes = append(keyIndexes, int32(index))
-			indexPrev = index
-		}
+		event.D.FoundAtIndex = keyIndexes
+	} else {
+		return event.D.FoundAtIndex
 	}
 	return keyIndexes
 }
@@ -192,7 +198,7 @@ func (e *Event) Store(db *bolt.DB) {
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		b.Put([]byte(e.Ts+string(e.Data)), marshal)
+		b.Put(getStoreKey(e), marshal)
 		return nil
 	})
 	if err != nil {
@@ -205,13 +211,22 @@ func (e *Event) Exists(db *bolt.DB) bool {
 	e.GenerateKey()
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		found = b.Get([]byte(e.Ts+string(e.Data))) != nil
+		found = b.Get(getStoreKey(e)) != nil
 		return nil
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	return found
+}
+func getStoreKey(e *Event) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, e.Ts)
+	var buffer bytes.Buffer
+	buffer.Write(b)
+	buffer.Write(e.Data)
+	key := buffer.Bytes()
+	return key
 }
 
 func (e *Event) Retrieve(key []byte, db *bolt.DB) {
