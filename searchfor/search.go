@@ -37,8 +37,19 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	keys := strings.Split(search[0], " ")
 	search = search[1:]
 
-	lru, err := simplelru.NewLRU(10000, func(key interface{}, value interface{}) {})
-	lru2, err := simplelru.NewLRU(10000, func(key interface{}, value interface{}) {})
+	countSummary := false
+	for _, value := range search {
+		countSummary = countSummary || strings.TrimSpace(value) == "count"
+	}
+
+	uniqueSummary := false
+	for _, value := range search {
+		uniqueSummary = uniqueSummary || strings.TrimSpace(value) == "unique"
+	}
+
+
+	lru, err := simplelru.NewLRU(1000, func(key interface{}, value interface{}) {})
+	lru2, err := simplelru.NewLRU(1000, func(key interface{}, value interface{}) {})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,32 +72,23 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			if err != nil {
 				log.Fatal(err)
 			}
-			getData(d, &event, lru)
-			if len(t) == 0 {
-				if skipItems == int64(0) {
-					count++
-					eventRes := proto.EventRes{Data: event.GetData(),
-						Lines:                   event.GetLines(),
-						Fields:                  event.D.Fields,
-						Ts:                      event.Ts,
-						Path:                    event.D.Path,
-					}
-					searchRes.Events = append(searchRes.Events, &eventRes)
-					//send(searchRes, ch)
-					continue
-				}
-				skipItems--
-				continue
-			}
-			add := addevent(lru2, event, keys)
+
+			add, first := addevent(d, lru, lru2, &event, keys)
 
 			if add {
 				if skipItems == int64(0) {
-					if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
+					if uniqueSummary && !first{
+						continue
+					}
+					if len(search) > 0 && countSummary {
 						searchRes.Count++
 						if count == int64(wantedItems)-1 {
 							continue
 						}
+					}
+
+					if add {
+						getData(d, &event, lru)
 					}
 					count ++
 					eventRes := proto.EventRes{Data: event.GetData(),
@@ -117,16 +119,19 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	ch <- marshal
 
 }
-func addevent(lru2 *simplelru.LRU, event proto.Event, keys []string) bool {
-	add := false
+func addevent(d *bolt.Bucket,lru, lru2 *simplelru.LRU, event *proto.Event, keys []string) (add bool, first bool) {
 	r, f := lru2.Get(string(event.Data))
 	if !f {
+		getData(d, event, lru)
 		add = event.ShouldAddAndGetIndexes(keys)
 		lru2.Add(string(event.Data), add)
+		if add {
+			return add, true
+		}
 	} else {
 		add = r.(bool)
 	}
-	return add
+	return add, false
 }
 func getData(d *bolt.Bucket, event *proto.Event, lru *simplelru.LRU) {
 

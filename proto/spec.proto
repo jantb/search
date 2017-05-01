@@ -14,7 +14,6 @@ message Data {
     int32 lines = 3;
     string path = 4;
     repeated Field fields = 5;
-    string ts = 6;
 }
 
 message Field {
@@ -31,10 +30,6 @@ message FileMonitor {
 message Meta {
     int64 count = 1;
     int64 unique = 2;
-}
-
-service Search {
-    rpc Process (SearchConf) returns (SearchRes) {}
 }
 
 message SearchConf{

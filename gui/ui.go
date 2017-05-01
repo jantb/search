@@ -3,7 +3,6 @@ package gui
 import (
 	"fmt"
 	"log"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -162,7 +161,6 @@ func layout(g *gocui.Gui) error {
 
 var resChan = make(chan []byte)
 var origin = 0
-var skipItems = int64(0)
 var tail = atomic.Value{}
 
 func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
@@ -170,23 +168,22 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	case ch != 0 && mod == 0:
 		v.EditWrite(ch)
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
 	case key == gocui.KeySpace:
 		v.EditWrite(' ')
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
 		v.EditDelete(true)
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
 	case key == gocui.KeyDelete:
 		v.EditDelete(false)
 		g.Execute(reset)
-		go searchfor.SearchFor([]byte(v.Buffer()), 50, 0, resChan, db)
+		go searchfor.SearchFor([]byte(v.Buffer()), 500, 0, resChan, db)
 	case key == gocui.KeyInsert:
 		v.Overwrite = !v.Overwrite
-	case key == gocui.KeyEnter:
-		//v.EditNewLine()
+
 	case key == gocui.KeyArrowDown:
 		g.Execute(func(g *gocui.Gui) error {
 			vm, err := g.View("main")
@@ -200,13 +197,24 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			err = vm.SetOrigin(0, origin)
 			if err != nil {
 				origin--
+				vm.SetOrigin(0, origin)
 			}
-			if origin >= len(strings.Split(vm.Buffer(), "\n")) {
-				skipItems--
-				if skipItems == -1 {
-					skipItems++
-				}
-				go searchfor.SearchFor([]byte(v.Buffer()), 50, skipItems, resChan, db)
+			return nil
+		})
+	case key == gocui.KeyPgdn:
+		g.Execute(func(g *gocui.Gui) error {
+			vm, err := g.View("main")
+			vm.Autoscroll = false
+			_, y := vm.Origin()
+			origin = y
+			if err != nil {
+				return err
+			}
+			origin += 10
+			err = vm.SetOrigin(0, origin)
+			if err != nil {
+				origin = y
+				vm.SetOrigin(0, origin)
 			}
 			return nil
 		})
@@ -224,9 +232,24 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			err = vm.SetOrigin(0, origin)
 			if err != nil {
 				origin++
+				vm.SetOrigin(0, origin)
 			}
-			if origin == 0 {
-				skipItems++
+			return nil
+		})
+	case key == gocui.KeyPgup:
+		g.Execute(func(g *gocui.Gui) error {
+			vm, err := g.View("main")
+			vm.Autoscroll = false
+			_, o := vm.Origin()
+			origin = o
+			if err != nil {
+				return err
+			}
+			origin -= 10
+			err = vm.SetOrigin(0, origin)
+			if err != nil {
+				origin = 0
+				vm.SetOrigin(0, origin)
 			}
 			return nil
 		})
