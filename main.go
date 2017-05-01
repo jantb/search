@@ -13,8 +13,8 @@ import (
 	"github.com/jantb/search/tail"
 )
 import (
-	"net/http"
-	_ "net/http/pprof"
+//"net/http"
+//	_ "net/http/pprof"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -23,7 +23,11 @@ var db *bolt.DB
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	logFile, _ := os.OpenFile("x.txt", os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	logFile, _ := os.OpenFile(filepath.Join(usr.HomeDir, ".search.log"), os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
 	syscall.Dup2(int(logFile.Fd()), 1)
 	syscall.Dup2(int(logFile.Fd()), 2)
 	flag.Parse()
@@ -37,7 +41,7 @@ func main() {
 	}
 
 	tail.TailAllFiles(db)
-	go http.ListenAndServe(":8080", http.DefaultServeMux)
+	//go http.ListenAndServe(":8080", http.DefaultServeMux)
 	gui.Run(db)
 }
 

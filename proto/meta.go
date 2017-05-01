@@ -26,8 +26,6 @@ func (e *Meta) Retrieve(db *bolt.DB) {
 }
 
 func (e *Meta) IncCount(db *bolt.DB) {
-	var by []byte
-
 	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Meta"))
 		e.Unmarshal(b.Get([]byte("Meta")))
@@ -39,14 +37,9 @@ func (e *Meta) IncCount(db *bolt.DB) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if len(by) != 0 {
-
-	}
 }
 
 func (e *Meta) IncUnique(db *bolt.DB) {
-	var by []byte
-
 	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Meta"))
 		e.Unmarshal(b.Get([]byte("Meta")))
@@ -57,9 +50,6 @@ func (e *Meta) IncUnique(db *bolt.DB) {
 	})
 	if err != nil {
 		log.Fatal(err)
-	}
-	if len(by) != 0 {
-
 	}
 }
 
