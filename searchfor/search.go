@@ -47,8 +47,8 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 		uniqueSummary = uniqueSummary || strings.TrimSpace(value) == "unique"
 	}
 
-	lru, err := simplelru.NewLRU(1000, func(key interface{}, value interface{}) {})
-	lru2, err := simplelru.NewLRU(1000, func(key interface{}, value interface{}) {})
+	lru, err := simplelru.NewLRU(10000, func(key interface{}, value interface{}) {})
+	lru2, err := simplelru.NewLRU(10000, func(key interface{}, value interface{}) {})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,11 +92,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 					count++
 
 					eventRes := proto.EventRes{Data: event.GetData(),
-						Lines:        event.GetLines(),
-						Fields:       event.D.Fields,
-						FoundAtIndex: event.GetKeyIndexes(keys),
-						Ts:           time.Unix(0, int64(event.Ts)).Format("2006-01-02T15:04:05.999Z07:00"),
-						Path:         event.D.Path,
+						Lines:                   event.GetLines(),
+						Fields:                  event.D.Fields,
+						FoundAtIndex:            event.GetKeyIndexes(keys),
+						Ts:                      time.Unix(0, int64(event.Ts)).Format("2006-01-02T15:04:05.999Z07:00"),
+						Path:                    event.D.Path,
 					}
 
 					searchRes.Events = append(searchRes.Events, &eventRes)
@@ -147,11 +147,4 @@ func getData(d *bolt.Bucket, event *proto.Event, lru *simplelru.LRU) {
 	}
 
 	event.D = &data
-}
-func send(searchRes proto.SearchRes, ch chan []byte) {
-	marshal, err := searchRes.Marshal()
-	if err != nil {
-		log.Panic(err)
-	}
-	ch <- marshal
 }

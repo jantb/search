@@ -224,7 +224,10 @@ func getStoreKey(e *Event) []byte {
 	binary.BigEndian.PutUint64(b, e.Ts)
 	var buffer bytes.Buffer
 	buffer.Write(b)
-	buffer.Write(e.Data)
+	new64 := xxhash.New64()
+	new64.Write(e.Data)
+	binary.BigEndian.PutUint64(b, new64.Sum64())
+	buffer.Write(b)
 	key := buffer.Bytes()
 	return key
 }

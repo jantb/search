@@ -70,7 +70,7 @@ func Run(d *bolt.DB) {
 						title += fmt.Sprintf("count:%d ", c)
 					}
 					tS := ts.Load().(string)
-					title += fmt.Sprintf("%s %d %d", tS, nodeCount, nodeUnique)
+					title += fmt.Sprintf("%s total events:%d unique events:%d", tS, nodeCount, nodeUnique)
 					v.Title = title
 					return nil
 				})
