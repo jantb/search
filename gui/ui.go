@@ -57,10 +57,10 @@ func Run(d *bolt.DB) {
 				g.Execute(func(g *gocui.Gui) error {
 					v, _ := g.View("edit")
 
-					nodecount := int64(0)
 					var meta proto.Meta
 					meta.Retrieve(db)
-					nodecount = meta.Count
+					nodeCount :=  meta.Count
+					nodeUnique :=  meta.Unique
 
 					title := ""
 					if searchfor.Searching.Load() != nil && searchfor.Searching.Load().(bool) {
@@ -71,7 +71,7 @@ func Run(d *bolt.DB) {
 						title += fmt.Sprintf("count:%d ", c)
 					}
 					tS := ts.Load().(string)
-					title += fmt.Sprintf("%s %d", tS, nodecount)
+					title += fmt.Sprintf("%s %d %d", tS, nodeCount, nodeUnique)
 					v.Title = title
 					return nil
 				})

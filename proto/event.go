@@ -12,7 +12,7 @@ import (
 	"github.com/jantb/search/utils"
 )
 
-func (event *Event) ShouldAddAndGetIndexes(keys []string, db *bolt.DB) bool {
+func (event *Event) ShouldAddAndGetIndexes(keys []string) bool {
 	add := true
 	for _, key := range keys {
 		if strings.TrimSpace(key) == "" {
@@ -155,14 +155,15 @@ func (e *Event) SetData(text string) {
 }
 
 func (e *Event) GetData() string {
-	return string(e.D.Data)
+	return e.D.Data
 }
 
 func (e *Event) Store(db *bolt.DB) {
 	found := false
+	e.GenerateKey()
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Data"))
-		found = b.Get(e.GenerateKey()) != nil
+		found = b.Get(e.Data) != nil
 		return nil
 	})
 
@@ -171,6 +172,7 @@ func (e *Event) Store(db *bolt.DB) {
 	}
 
 	if !found {
+		e.BloomUpdate(db)
 		da, _ := e.D.Marshal()
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Data"))
@@ -180,13 +182,22 @@ func (e *Event) Store(db *bolt.DB) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		var meta Meta
+		meta.Retrieve(db)
+		meta.Unique++
+		meta.Store(db)
 	}
-	key := e.GenerateKey()
 	e.D = nil
 	marshal, err := e.Marshal()
+	var meta Meta
+	meta.Retrieve(db)
+	meta.Count++
+
+	meta.Store(db)
+
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		b.Put(key, marshal)
+		b.Put([]byte(e.Ts+string(e.Data)), marshal)
 		return nil
 	})
 	if err != nil {
@@ -194,15 +205,12 @@ func (e *Event) Store(db *bolt.DB) {
 	}
 }
 
-func (e *Event) Exists(key []byte, db *bolt.DB) bool {
+func (e *Event) Exists(db *bolt.DB) bool {
 	found := false
-	if len(key) == 0 {
-		//if key is empty just return
-		return true
-	}
+	e.GenerateKey()
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		found = b.Get(key) != nil
+		found = b.Get([]byte(e.Ts+string(e.Data))) != nil
 		return nil
 	})
 	if err != nil {

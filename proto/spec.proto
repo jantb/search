@@ -30,6 +30,7 @@ message FileMonitor {
 
 message Meta {
     int64 count = 1;
+    int64 unique = 2;
 }
 
 service Search {

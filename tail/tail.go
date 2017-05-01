@@ -51,17 +51,10 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				event.SetData(buff.String())
 				l := buff.Len()
 				buff.Reset()
-				found := event.Exists(event.GenerateKey(), db)
+				found := event.Exists(db)
 				if !found && l > 0 {
-					event.BloomUpdate(db)
-
 					fileMonitor.Offset = stopo
 					fileMonitor.Store(db)
-
-					var meta proto.Meta
-					meta.Retrieve(db)
-					meta.Count++
-					meta.Store(db)
 					event.Store(db)
 					ok = 1
 				}

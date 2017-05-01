@@ -11,11 +11,15 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/jantb/search/proto"
 )
-
+import (
+	"github.com/hashicorp/golang-lru/simplelru"
+)
 var Searching atomic.Value
 
 var stop = atomic.Value{}
 var mutex = sync.Mutex{}
+
+
 
 func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *bolt.DB) {
 	if stop.Load() == nil {
@@ -34,7 +38,12 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	keys := strings.Split(search[0], " ")
 	search = search[1:]
 
-	err := db.View(func(tx *bolt.Tx) error {
+	lru, err := simplelru.NewLRU(10000, func(key interface{}, value interface{}) {})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		d := tx.Bucket([]byte("Data"))
 		c := b.Cursor()
@@ -52,11 +61,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			if err != nil {
 				log.Fatal(err)
 			}
-			var bufferd bytes.Buffer
-			bufferd.Write(d.Get(event.Data))
-			data := proto.Data{}
-			data.Unmarshal(bufferd.Bytes())
-			event.D = &data
+			getData(d, &event, lru)
 			if len(t) == 0 {
 				if skipItems == int64(0) {
 					count += int64(event.GetLines()) + int64(1)
@@ -67,13 +72,13 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 						Path:                    event.D.Path,
 					}
 					searchRes.Events = append(searchRes.Events, &eventRes)
-					send(searchRes, ch)
+					//send(searchRes, ch)
 					continue
 				}
 				skipItems--
 				continue
 			}
-			if event.ShouldAddAndGetIndexes(keys, db) {
+			if event.ShouldAddAndGetIndexes(keys) {
 				if skipItems == int64(0) {
 					if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 						searchRes.Count++
@@ -91,7 +96,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 					}
 
 					searchRes.Events = append(searchRes.Events, &eventRes)
-					send(searchRes, ch)
+					//send(searchRes, ch)
 					continue
 				}
 				skipItems--
@@ -109,6 +114,21 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	}
 	ch <- marshal
 
+}
+func getData(d *bolt.Bucket, event *proto.Event, lru *simplelru.LRU) {
+
+	dl, found := lru.Get(string(event.Data))
+	data := proto.Data{}
+	if !found{
+		var bufferd bytes.Buffer
+		bufferd.Write(d.Get(event.Data))
+		data.Unmarshal(bufferd.Bytes())
+		lru.Add(string(event.Data), data)
+	}else{
+		data = dl.(proto.Data)
+	}
+
+	event.D = &data
 }
 func send(searchRes proto.SearchRes, ch chan []byte) {
 	marshal, err := searchRes.Marshal()
