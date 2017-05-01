@@ -37,7 +37,7 @@ func Run(d *bolt.DB) {
 
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
-		tickerTail := time.NewTicker(50 * time.Millisecond)
+		tickerTail := time.NewTicker(1000 * time.Millisecond)
 		var count = atomic.Value{}
 		count.Store(int64(0))
 		var ts = atomic.Value{}
@@ -59,8 +59,8 @@ func Run(d *bolt.DB) {
 
 					var meta proto.Meta
 					meta.Retrieve(db)
-					nodeCount :=  meta.Count
-					nodeUnique :=  meta.Unique
+					nodeCount := meta.Count
+					nodeUnique := meta.Unique
 
 					title := ""
 					if searchfor.Searching.Load() != nil && searchfor.Searching.Load().(bool) {
