@@ -15,16 +15,18 @@ import (
 
 func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
-		ReOpen:   true,
-		Poll:     fileMonitor.Poll,
-		Logger:   tail.DiscardingLogger,
-		Location: &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
+		ReOpen:                                               true,
+		Poll:                                                 fileMonitor.Poll,
+		Logger:                                               tail.DiscardingLogger,
+		Location:                                             &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
 	key := []byte{}
 	var tt time.Time
 	f := ""
 	prevo := int64(0)
 	stopo := int64(0)
+	buff := bytes.Buffer{}
 	var event proto.Event
+	event.D = &proto.Data{}
 	for line := range t.Lines {
 		text := line.Text
 		prefix := getPrefix(text)
@@ -46,24 +48,23 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				tt = ti
 				stopo = prevo
 				text = prefix + text[len(f)+1:]
+				event.SetData(buff.String())
+				l := buff.Len()
+				buff.Reset()
+				found := event.Exists(event.GenerateKey(), db)
+				if !found && l > 0 {
+					event.BloomUpdate(db)
 
-				found := event.Exists(event.GetKey(), db)
-				if found {
-					return
+					fileMonitor.Offset = stopo
+					fileMonitor.Store(db)
+
+					var meta proto.Meta
+					meta.Retrieve(db)
+					meta.Count++
+					meta.Store(db)
+					event.Store(db)
+					ok = 1
 				}
-
-				event.BloomUpdate(db)
-
-				fileMonitor.Offset = stopo
-				fileMonitor.Store(db)
-
-				var meta proto.Meta
-				meta.Retrieve(db)
-				meta.Count++
-				meta.Store(db)
-				event.Store(db)
-				event = proto.Event{}
-				ok = 1
 			}
 		}
 		prevo, err = t.Tell()
@@ -76,8 +77,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 			if key == nil {
 				continue
 			}
-
-			event.SetData(event.GetData() + "\n" + text)
+			buff.WriteString("\n" + text)
 			event.Lines += 1
 
 			if err != nil {
@@ -87,11 +87,11 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		}
 
 		event = proto.Event{
-			Ts:         tt.Format("2006-01-02T15:04:05.999Z07:00"),
-			Path:       proto.Btoi(proto.GetKeyToPath(fileMonitor.Path, db)),
+			Ts:   tt.Format("2006-01-02T15:04:05.999Z07:00"),
+			Path: proto.Btoi(proto.GetKeyToPath(fileMonitor.Path, db)),
+			D:    &proto.Data{},
 		}
-		event.SetData(text)
-
+		buff.WriteString(text)
 	}
 	if err != nil {
 		log.Fatal(err)

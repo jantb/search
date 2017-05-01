@@ -10,16 +10,16 @@ message Event {
     uint64 path = 5;
     repeated Field fields = 6;
     string ts = 7;
+    Data d = 8;
 }
 
 message Data {
- bytes bloom = 1;
+    bytes bloom = 1;
     bytes data = 2;
     int32 lines = 3;
     uint64 path = 4;
     repeated Field fields = 5;
     string ts = 6;
-    repeated bytes keys = 7;
 }
 
 message Field {

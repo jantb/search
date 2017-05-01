@@ -131,34 +131,31 @@ func (e *Event) BloomUpdate(db *bolt.DB) {
 	e.Bloom = bloom.NewFilter(nil, e.GetKeys(db), 10)
 }
 
-func (e *Event) GetKey() []byte {
-	e.Id = xxhash.New64().Sum(e.Data)
+func (e *Event) GenerateKey() []byte {
+	if e.D == nil {
+		return []byte{}
+	}
+
 	var buffer bytes.Buffer
-	buffer.Write([]byte(e.Ts))
-	buffer.Write(e.Id)
-	return buffer.Bytes()
+	buffer.Write(xxhash.New64().Sum(e.D.Data))
+	key := buffer.Bytes()
+	e.Data=key
+	return key
 }
 
 func (e *Event) SetData(text string) {
-	e.Data = []byte(text)
-	if len(e.Data) > 20000 {
-		e.Data = e.Data[:20000]
-	}
+	e.D.Data = []byte(text)
 }
 
 func (e *Event) GetData() string {
-	if len(e.Data) == 0 {
-		return ""
-	}
-
-	return string(e.Data)
+	return string(e.D.Data)
 }
 
 func (e *Event) Store(db *bolt.DB) {
 	found := false
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Data"))
-		found = b.Get(e.Id) != nil
+		found = b.Get(e.GenerateKey()) != nil
 		return nil
 	})
 
@@ -167,17 +164,18 @@ func (e *Event) Store(db *bolt.DB) {
 	}
 
 	if !found {
+		da, _ := e.D.Marshal()
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Data"))
-			b.Put(e.Id, e.Data)
+			b.Put(e.Data, da)
 			return nil
 		})
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	key := e.GetKey()
-	e.Data = []byte{}
+	key := e.GenerateKey()
+	e.D = nil
 	marshal, err := e.Marshal()
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
@@ -191,6 +189,10 @@ func (e *Event) Store(db *bolt.DB) {
 
 func (e *Event) Exists(key []byte, db *bolt.DB) bool {
 	found := false
+	if len(key) == 0 {
+		//if key is empty just return
+		return true
+	}
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		found = b.Get(key) != nil
@@ -226,7 +228,9 @@ func (e *Event) Retrieve(key []byte, db *bolt.DB) {
 			b := tx.Bucket([]byte("Data"))
 			var buffer bytes.Buffer
 			buffer.Write(b.Get(key))
-			e.Data = buffer.Bytes()
+			data := Data{}
+			data.Unmarshal(buffer.Bytes())
+			e.D = &data
 			return nil
 		})
 		if err != nil {

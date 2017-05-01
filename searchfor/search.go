@@ -56,9 +56,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			if err != nil {
 				log.Fatal(err)
 			}
-			var bufferD bytes.Buffer
-			bufferD.Write(d.Get(event.Id))
-			event.Data = bufferD.Bytes()
+			var bufferd bytes.Buffer
+			bufferd.Write(d.Get(event.Data))
+			data := proto.Data{}
+			data.Unmarshal(bufferd.Bytes())
+			event.D = &data
 			if len(t) == 0 {
 				if skipItems == int64(0) {
 					count += int64(event.Lines) + int64(1)
