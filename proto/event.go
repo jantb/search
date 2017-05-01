@@ -197,13 +197,13 @@ func (e *Event) Store(db *bolt.DB) {
 		meta.IncUnique(db)
 	}
 	e.D = nil
-	marshal, err := e.Marshal()
+	//marshal, err := e.Marshal()
 	var meta Meta
 	meta.IncCount(db)
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		b.Put(getStoreKey(e), marshal)
+		b.Put(getStoreKey(e), []byte{})
 		return nil
 	})
 	if err != nil {
@@ -233,34 +233,4 @@ func getStoreKey(e *Event) []byte {
 	buffer.Write(b)
 	key := buffer.Bytes()
 	return key
-}
-
-func (e *Event) Retrieve(key []byte, db *bolt.DB) {
-	var eventsb []byte
-
-	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Events"))
-		var buffer bytes.Buffer
-		buffer.Write(b.Get(key))
-		eventsb = buffer.Bytes()
-		return nil
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	if len(eventsb) != 0 {
-		e.Unmarshal(eventsb)
-		err = db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("Data"))
-			var buffer bytes.Buffer
-			buffer.Write(b.Get(key))
-			data := Data{}
-			data.Unmarshal(buffer.Bytes())
-			e.D = &data
-			return nil
-		})
-		if err != nil {
-			log.Panic(err)
-		}
-	}
 }

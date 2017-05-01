@@ -67,11 +67,8 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			buffer.Write(v)
 
 			var event proto.Event
-
-			err := event.Unmarshal(buffer.Bytes())
-			if err != nil {
-				log.Fatal(err)
-			}
+			event.Ts = binary.BigEndian.Uint64(k[:8])
+			event.Data = binary.BigEndian.Uint64(k[8:])
 
 			add, first := addevent(d, lru, lru2, &event, keys)
 
@@ -93,11 +90,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 					count++
 
 					eventRes := proto.EventRes{Data: event.GetData(),
-						Lines:        event.GetLines(),
-						Fields:       event.D.Fields,
-						FoundAtIndex: event.GetKeyIndexes(keys),
-						Ts:           time.Unix(0, int64(event.Ts)).Format("2006-01-02T15:04:05.999Z07:00"),
-						Path:         event.D.Path,
+						Lines:                   event.GetLines(),
+						Fields:                  event.D.Fields,
+						FoundAtIndex:            event.GetKeyIndexes(keys),
+						Ts:                      time.Unix(0, int64(event.Ts)).Format("2006-01-02T15:04:05.999Z07:00"),
+						Path:                    event.D.Path,
 					}
 
 					searchRes.Events = append(searchRes.Events, &eventRes)
