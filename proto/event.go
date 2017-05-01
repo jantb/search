@@ -21,12 +21,12 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string, db *bolt.DB) bool {
 		}
 		if strings.Contains(key, "<") {
 			split := strings.Split(key, "<")
-			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+			if !bloom.Filter(event.D.Bloom).MayContain([]byte(split[0])) {
 				add = false
 				continue
 			}
 			val := ""
-			for _, f := range event.Fields {
+			for _, f := range event.D.Fields {
 				if split[0] == f.Key {
 					val = f.Value
 				}
@@ -48,12 +48,12 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string, db *bolt.DB) bool {
 
 		} else if strings.Contains(key, ">") {
 			split := strings.Split(key, ">")
-			if !bloom.Filter(event.Bloom).MayContain([]byte(split[0])) {
+			if !bloom.Filter(event.D.Bloom).MayContain([]byte(split[0])) {
 				add = false
 				continue
 			}
 			val := ""
-			for _, f := range event.Fields {
+			for _, f := range event.D.Fields {
 				if split[0] == f.Key {
 					val = f.Value
 				}
@@ -74,11 +74,11 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string, db *bolt.DB) bool {
 			}
 
 		} else if key[:1] == "!" {
-			if bloom.Filter(event.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(GetPathFromId(Itob(event.Path), db), key[1:])) {
+			if bloom.Filter(event.D.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(GetPathFromId(Itob(event.Path), db), key[1:])) {
 				add = false
 				break
 			}
-		} else if !bloom.Filter(event.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(GetPathFromId(Itob(event.Path), db), key)) {
+		} else if !bloom.Filter(event.D.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(GetPathFromId(Itob(event.Path), db), key)) {
 			add = false
 			continue
 		}
@@ -107,7 +107,7 @@ func (event Event) GetKeyIndexes(keys []string) []int32 {
 }
 
 func (e *Event) GetKeys(db *bolt.DB) [][]byte {
-	e.Fields = e.Fields[:0]
+	e.D.Fields = e.D.Fields[:0]
 	set := make(map[string]bool)
 	for _, key := range utils.GetBloomKeysFromLine(e.GetData()) {
 		set[string(key)] = true
@@ -115,7 +115,7 @@ func (e *Event) GetKeys(db *bolt.DB) [][]byte {
 			split := strings.Split(string(key), "=")
 			set[split[0]] = true
 			set[split[1]] = true
-			e.Fields = append(e.Fields, &Field{Key: split[0], Value: split[1]})
+			e.D.Fields = append(e.D.Fields, &Field{Key: split[0], Value: split[1]})
 		}
 	}
 	for _, key := range utils.GetBloomKeysFromLine(GetPathFromId(Itob(e.Path), db)) {
@@ -128,7 +128,15 @@ func (e *Event) GetKeys(db *bolt.DB) [][]byte {
 	return keys
 }
 func (e *Event) BloomUpdate(db *bolt.DB) {
-	e.Bloom = bloom.NewFilter(nil, e.GetKeys(db), 10)
+	e.D.Bloom = bloom.NewFilter(nil, e.GetKeys(db), 10)
+}
+
+func (e *Event) GetLines() int32{
+	return e.D.Lines
+}
+
+func (e *Event) IncrementLines() {
+	 e.D.Lines++
 }
 
 func (e *Event) GenerateKey() []byte {
@@ -139,7 +147,7 @@ func (e *Event) GenerateKey() []byte {
 	var buffer bytes.Buffer
 	buffer.Write(xxhash.New64().Sum(e.D.Data))
 	key := buffer.Bytes()
-	e.Data=key
+	e.Data = key
 	return key
 }
 

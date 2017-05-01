@@ -63,10 +63,10 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			event.D = &data
 			if len(t) == 0 {
 				if skipItems == int64(0) {
-					count += int64(event.Lines) + int64(1)
+					count += int64(event.GetLines()) + int64(1)
 					eventRes := proto.EventRes{Data: event.GetData(),
-						Lines:                   event.Lines,
-						Fields:                  event.Fields,
+						Lines:                   event.GetLines(),
+						Fields:                  event.D.Fields,
 						Ts:                      event.Ts,
 						Path:                    proto.GetPathFromId(proto.Itob(event.Path), db),
 					}
@@ -85,10 +85,10 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 							continue
 						}
 					}
-					count += int64(event.Lines) + int64(1)
+					count += int64(event.GetLines()) + int64(1)
 					eventRes := proto.EventRes{Data: event.GetData(),
-						Lines:                   event.Lines,
-						Fields:                  event.Fields,
+						Lines:                   event.GetLines(),
+						Fields:                  event.D.Fields,
 						FoundAtIndex:            event.GetKeyIndexes(keys),
 						Ts:                      event.Ts,
 						Path:                    proto.GetPathFromId(proto.Itob(event.Path), db),

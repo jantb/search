@@ -78,7 +78,7 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 				continue
 			}
 			buff.WriteString("\n" + text)
-			event.Lines += 1
+			event.IncrementLines()
 
 			if err != nil {
 				log.Fatal(err)

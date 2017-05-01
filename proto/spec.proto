@@ -3,12 +3,8 @@ syntax = 'proto3';
 package proto;
 
 message Event {
-    bytes id = 1;
-    bytes bloom = 2;
     bytes data = 3;
-    int32 lines = 4;
     uint64 path = 5;
-    repeated Field fields = 6;
     string ts = 7;
     Data d = 8;
 }
