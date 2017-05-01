@@ -12,6 +12,7 @@ import (
 	"github.com/jantb/search/proto"
 )
 import (
+	"encoding/binary"
 	"github.com/hashicorp/golang-lru/simplelru"
 )
 
@@ -57,21 +58,16 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 		b := tx.Bucket([]byte("Events"))
 		d := tx.Bucket([]byte("Data"))
 		c := b.Cursor()
-		k, v := c.Last()
-		for ; k != nil && count <= int64(wantedItems); k, v = c.Prev() {
+		k, _ := c.Last()
+		for ; k != nil && count <= int64(wantedItems); k, _ = c.Prev() {
 			if stop.Load().(bool) {
 				return nil
 			}
-			var buffer bytes.Buffer
-			buffer.Write(v)
 
 			var event proto.Event
 
-			err := event.Unmarshal(buffer.Bytes())
-			if err != nil {
-				log.Fatal(err)
-			}
-
+			event.Ts = binary.BigEndian.Uint64(k[:8])
+			event.Data = k[8:]
 			add, first := addevent(d, lru, lru2, &event, keys)
 
 			if add {

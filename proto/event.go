@@ -153,7 +153,7 @@ func (e *Event) GenerateKey() []byte {
 	new64.Write([]byte(e.D.Data + e.D.Path))
 
 	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b,new64.Sum64() )
+	binary.BigEndian.PutUint64(b, new64.Sum64())
 	e.Data = b
 	return e.Data
 }
@@ -168,7 +168,6 @@ func (e *Event) GetData() string {
 
 func (e *Event) Store(db *bolt.DB) {
 	found := false
-	e.GenerateKey()
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Data"))
 		found = b.Get(e.Data) != nil
@@ -193,14 +192,12 @@ func (e *Event) Store(db *bolt.DB) {
 		var meta Meta
 		meta.IncUnique(db)
 	}
-	e.D = nil
-	marshal, err := e.Marshal()
 	var meta Meta
 	meta.IncCount(db)
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		b.Put(getStoreKey(e), marshal)
+		b.Put(getStoreKey(e), []byte{})
 		return nil
 	})
 	if err != nil {
@@ -226,10 +223,7 @@ func getStoreKey(e *Event) []byte {
 	binary.BigEndian.PutUint64(b, e.Ts)
 	var buffer bytes.Buffer
 	buffer.Write(b)
-	new64 := xxhash.New64()
-	new64.Write(e.Data)
-	binary.BigEndian.PutUint64(b, new64.Sum64())
-	buffer.Write(b)
+	buffer.Write(e.Data)
 	key := buffer.Bytes()
 	return key
 }
