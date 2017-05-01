@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/golang/snappy"
 	"github.com/jantb/search/proto"
 )
 
@@ -48,11 +47,8 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			buffer.Write(v)
 
 			var event proto.Event
-			b, err := snappy.Decode(nil, buffer.Bytes())
-			if err != nil {
-				log.Panic(err)
-			}
-			err = event.Unmarshal(b)
+
+			err := event.Unmarshal(buffer.Bytes())
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -68,7 +64,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 						Lines:                   event.GetLines(),
 						Fields:                  event.D.Fields,
 						Ts:                      event.Ts,
-						Path:                    proto.GetPathFromId(proto.Itob(event.Path), db),
+						Path:                    event.D.Path,
 					}
 					searchRes.Events = append(searchRes.Events, &eventRes)
 					send(searchRes, ch)
@@ -91,7 +87,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 						Fields:                  event.D.Fields,
 						FoundAtIndex:            event.GetKeyIndexes(keys),
 						Ts:                      event.Ts,
-						Path:                    proto.GetPathFromId(proto.Itob(event.Path), db),
+						Path:                    event.D.Path,
 					}
 
 					searchRes.Events = append(searchRes.Events, &eventRes)

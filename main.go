@@ -58,7 +58,6 @@ func getDb() *bolt.DB {
 		tx.CreateBucketIfNotExists([]byte("Data"))
 		tx.CreateBucketIfNotExists([]byte("Files"))
 		tx.CreateBucketIfNotExists([]byte("Meta"))
-		tx.CreateBucketIfNotExists([]byte("FilesPathToId"))
 		return nil
 	})
 	if err != nil {

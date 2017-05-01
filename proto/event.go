@@ -9,7 +9,6 @@ import (
 	"github.com/OneOfOne/xxhash"
 	"github.com/boltdb/bolt"
 	"github.com/golang/leveldb/bloom"
-	"github.com/golang/snappy"
 	"github.com/jantb/search/utils"
 )
 
@@ -74,11 +73,11 @@ func (event *Event) ShouldAddAndGetIndexes(keys []string, db *bolt.DB) bool {
 			}
 
 		} else if key[:1] == "!" {
-			if bloom.Filter(event.D.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(GetPathFromId(Itob(event.Path), db), key[1:])) {
+			if bloom.Filter(event.D.Bloom).MayContain([]byte(key[1:])) && (strings.Contains(event.GetData(), key[1:]) || strings.Contains(event.D.Path, key[1:])) {
 				add = false
 				break
 			}
-		} else if !bloom.Filter(event.D.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(GetPathFromId(Itob(event.Path), db), key)) {
+		} else if !bloom.Filter(event.D.Bloom).MayContain([]byte(key)) || !(strings.Contains(event.GetData(), key) || strings.Contains(event.D.Path, key)) {
 			add = false
 			continue
 		}
@@ -118,7 +117,7 @@ func (e *Event) GetKeys(db *bolt.DB) [][]byte {
 			e.D.Fields = append(e.D.Fields, &Field{Key: split[0], Value: split[1]})
 		}
 	}
-	for _, key := range utils.GetBloomKeysFromLine(GetPathFromId(Itob(e.Path), db)) {
+	for _, key := range utils.GetBloomKeysFromLine(e.D.Path) {
 		set[string(key)] = true
 	}
 	keys := make([][]byte, 0, len(set))
@@ -131,12 +130,12 @@ func (e *Event) BloomUpdate(db *bolt.DB) {
 	e.D.Bloom = bloom.NewFilter(nil, e.GetKeys(db), 10)
 }
 
-func (e *Event) GetLines() int32{
+func (e *Event) GetLines() int32 {
 	return e.D.Lines
 }
 
 func (e *Event) IncrementLines() {
-	 e.D.Lines++
+	e.D.Lines++
 }
 
 func (e *Event) GenerateKey() []byte {
@@ -187,7 +186,7 @@ func (e *Event) Store(db *bolt.DB) {
 	marshal, err := e.Marshal()
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		b.Put(key, snappy.Encode(nil, marshal))
+		b.Put(key, marshal)
 		return nil
 	})
 	if err != nil {
@@ -226,12 +225,7 @@ func (e *Event) Retrieve(key []byte, db *bolt.DB) {
 		log.Fatal(err)
 	}
 	if len(eventsb) != 0 {
-		b, err := snappy.Decode(nil, eventsb)
-		if err != nil {
-			log.Panic(err)
-		}
-
-		e.Unmarshal(b)
+		e.Unmarshal(eventsb)
 		err = db.View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Data"))
 			var buffer bytes.Buffer
