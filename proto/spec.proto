@@ -10,7 +10,7 @@ message Event {
 
 message Data {
     bytes bloom = 1;
-    bytes data = 2;
+    string data = 2;
     int32 lines = 3;
     string path = 4;
     repeated Field fields = 5;

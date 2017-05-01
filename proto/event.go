@@ -144,14 +144,14 @@ func (e *Event) GenerateKey() []byte {
 	}
 
 	var buffer bytes.Buffer
-	buffer.Write(xxhash.New64().Sum(e.D.Data))
+	buffer.Write(xxhash.New64().Sum([]byte(e.D.Data + e.D.Path)))
 	key := buffer.Bytes()
 	e.Data = key
 	return key
 }
 
 func (e *Event) SetData(text string) {
-	e.D.Data = []byte(text)
+	e.D.Data = text
 }
 
 func (e *Event) GetData() string {

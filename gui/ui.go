@@ -98,7 +98,7 @@ func Run(d *bolt.DB) {
 					for _, value := range res.Events {
 						count += len(value.Data)
 
-						if count < 500000 {
+						if count < 5000000 {
 							events = append(events, value)
 						}
 					}
