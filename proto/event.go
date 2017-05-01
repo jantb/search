@@ -149,11 +149,13 @@ func (e *Event) GenerateKey() []byte {
 		return []byte{}
 	}
 
-	var buffer bytes.Buffer
-	buffer.Write(xxhash.New64().Sum([]byte(e.D.Data + e.D.Path)))
-	key := buffer.Bytes()
-	e.Data = key
-	return key
+	new64 := xxhash.New64()
+	new64.Write([]byte(e.D.Data + e.D.Path))
+
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b,new64.Sum64() )
+	e.Data = b
+	return e.Data
 }
 
 func (e *Event) SetData(text string) {
