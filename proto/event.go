@@ -6,8 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
-
-	"github.com/OneOfOne/xxhash"
+	"github.com/cespare/xxhash"
 	"github.com/boltdb/bolt"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/utils"
@@ -144,14 +143,16 @@ func (e *Event) IncrementLines() {
 	e.D.Lines++
 }
 
-func (e *Event) GenerateKey() []byte {
+func (e *Event) GenerateKey() uint64 {
 	if e.D == nil {
-		return []byte{}
+		return 0
 	}
 
-	var buffer bytes.Buffer
-	buffer.Write(xxhash.New64().Sum([]byte(e.D.Data + e.D.Path)))
-	key := buffer.Bytes()
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, e.Ts)
+	hash64 := xxhash.New()
+	hash64.Write([]byte(e.D.Data + e.D.Path))
+	key := hash64.Sum64()
 	e.Data = key
 	return key
 }
@@ -169,7 +170,9 @@ func (e *Event) Store(db *bolt.DB) {
 	e.GenerateKey()
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Data"))
-		found = b.Get(e.Data) != nil
+		bb := make([]byte, 8)
+		binary.BigEndian.PutUint64(bb, e.Data)
+		found = b.Get(bb) != nil
 		return nil
 	})
 
@@ -182,7 +185,9 @@ func (e *Event) Store(db *bolt.DB) {
 		da, _ := e.D.Marshal()
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Data"))
-			b.Put(e.Data, da)
+			bb := make([]byte, 8)
+			binary.BigEndian.PutUint64(bb, e.Data)
+			b.Put(bb, da)
 			return nil
 		})
 		if err != nil {
@@ -224,9 +229,7 @@ func getStoreKey(e *Event) []byte {
 	binary.BigEndian.PutUint64(b, e.Ts)
 	var buffer bytes.Buffer
 	buffer.Write(b)
-	new64 := xxhash.New64()
-	new64.Write(e.Data)
-	binary.BigEndian.PutUint64(b, new64.Sum64())
+	binary.BigEndian.PutUint64(b, e.Data)
 	buffer.Write(b)
 	key := buffer.Bytes()
 	return key
