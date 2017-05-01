@@ -6,7 +6,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"github.com/cespare/xxhash"
+
+	"github.com/OneOfOne/xxhash"
 	"github.com/boltdb/bolt"
 	"github.com/golang/leveldb/bloom"
 	"github.com/jantb/search/utils"
@@ -143,16 +144,14 @@ func (e *Event) IncrementLines() {
 	e.D.Lines++
 }
 
-func (e *Event) GenerateKey() uint64 {
+func (e *Event) GenerateKey() []byte {
 	if e.D == nil {
-		return 0
+		return []byte{}
 	}
 
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, e.Ts)
-	hash64 := xxhash.New()
-	hash64.Write([]byte(e.D.Data + e.D.Path))
-	key := hash64.Sum64()
+	var buffer bytes.Buffer
+	buffer.Write(xxhash.New64().Sum([]byte(e.D.Data + e.D.Path)))
+	key := buffer.Bytes()
 	e.Data = key
 	return key
 }
@@ -170,9 +169,7 @@ func (e *Event) Store(db *bolt.DB) {
 	e.GenerateKey()
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Data"))
-		bb := make([]byte, 8)
-		binary.BigEndian.PutUint64(bb, e.Data)
-		found = b.Get(bb) != nil
+		found = b.Get(e.Data) != nil
 		return nil
 	})
 
@@ -185,9 +182,7 @@ func (e *Event) Store(db *bolt.DB) {
 		da, _ := e.D.Marshal()
 		err = db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Data"))
-			bb := make([]byte, 8)
-			binary.BigEndian.PutUint64(bb, e.Data)
-			b.Put(bb, da)
+			b.Put(e.Data, da)
 			return nil
 		})
 		if err != nil {
@@ -197,13 +192,13 @@ func (e *Event) Store(db *bolt.DB) {
 		meta.IncUnique(db)
 	}
 	e.D = nil
-	//marshal, err := e.Marshal()
+	marshal, err := e.Marshal()
 	var meta Meta
 	meta.IncCount(db)
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
-		b.Put(getStoreKey(e), []byte{})
+		b.Put(getStoreKey(e), marshal)
 		return nil
 	})
 	if err != nil {
@@ -229,8 +224,40 @@ func getStoreKey(e *Event) []byte {
 	binary.BigEndian.PutUint64(b, e.Ts)
 	var buffer bytes.Buffer
 	buffer.Write(b)
-	binary.BigEndian.PutUint64(b, e.Data)
+	new64 := xxhash.New64()
+	new64.Write(e.Data)
+	binary.BigEndian.PutUint64(b, new64.Sum64())
 	buffer.Write(b)
 	key := buffer.Bytes()
 	return key
+}
+
+func (e *Event) Retrieve(key []byte, db *bolt.DB) {
+	var eventsb []byte
+
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Events"))
+		var buffer bytes.Buffer
+		buffer.Write(b.Get(key))
+		eventsb = buffer.Bytes()
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(eventsb) != 0 {
+		e.Unmarshal(eventsb)
+		err = db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("Data"))
+			var buffer bytes.Buffer
+			buffer.Write(b.Get(key))
+			data := Data{}
+			data.Unmarshal(buffer.Bytes())
+			e.D = &data
+			return nil
+		})
+		if err != nil {
+			log.Panic(err)
+		}
+	}
 }

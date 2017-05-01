@@ -3,7 +3,7 @@ syntax = 'proto3';
 package proto;
 
 message Event {
-    uint64 data = 3;
+    bytes data = 3;
     uint64 ts = 7;
     Data d = 8;
 }

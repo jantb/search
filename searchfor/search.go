@@ -2,7 +2,6 @@ package searchfor
 
 import (
 	"bytes"
-	"encoding/binary"
 	"log"
 	"strings"
 	"sync"
@@ -67,8 +66,11 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			buffer.Write(v)
 
 			var event proto.Event
-			event.Ts = binary.BigEndian.Uint64(k[:8])
-			event.Data = binary.BigEndian.Uint64(k[8:])
+
+			err := event.Unmarshal(buffer.Bytes())
+			if err != nil {
+				log.Fatal(err)
+			}
 
 			add, first := addevent(d, lru, lru2, &event, keys)
 
@@ -137,9 +139,7 @@ func getData(d *bolt.Bucket, event *proto.Event, lru *simplelru.LRU) {
 	data := proto.Data{}
 	if !found {
 		var bufferd bytes.Buffer
-		b := make([]byte, 8)
-		binary.BigEndian.PutUint64(b, event.Data)
-		bufferd.Write(d.Get(b))
+		bufferd.Write(d.Get(event.Data))
 		data.Unmarshal(bufferd.Bytes())
 		lru.Add(string(event.Data), data)
 	} else {
