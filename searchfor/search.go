@@ -14,12 +14,11 @@ import (
 import (
 	"github.com/hashicorp/golang-lru/simplelru"
 )
+
 var Searching atomic.Value
 
 var stop = atomic.Value{}
 var mutex = sync.Mutex{}
-
-
 
 func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *bolt.DB) {
 	if stop.Load() == nil {
@@ -39,6 +38,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	search = search[1:]
 
 	lru, err := simplelru.NewLRU(10000, func(key interface{}, value interface{}) {})
+	lru2, err := simplelru.NewLRU(10000, func(key interface{}, value interface{}) {})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 			getData(d, &event, lru)
 			if len(t) == 0 {
 				if skipItems == int64(0) {
-					count += int64(event.GetLines()) + int64(1)
+					count++
 					eventRes := proto.EventRes{Data: event.GetData(),
 						Lines:                   event.GetLines(),
 						Fields:                  event.D.Fields,
@@ -78,7 +78,9 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 				skipItems--
 				continue
 			}
-			if event.ShouldAddAndGetIndexes(keys) {
+			add := addevent(lru2, event, keys)
+
+			if add {
 				if skipItems == int64(0) {
 					if len(search) > 0 && strings.TrimSpace(search[0]) == "count" {
 						searchRes.Count++
@@ -86,7 +88,7 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 							continue
 						}
 					}
-					count += int64(event.GetLines()) + int64(1)
+					count ++
 					eventRes := proto.EventRes{Data: event.GetData(),
 						Lines:                   event.GetLines(),
 						Fields:                  event.D.Fields,
@@ -115,16 +117,27 @@ func SearchFor(t []byte, wantedItems int, skipItems int64, ch chan []byte, db *b
 	ch <- marshal
 
 }
+func addevent(lru2 *simplelru.LRU, event proto.Event, keys []string) bool {
+	add := false
+	r, f := lru2.Get(string(event.Data))
+	if !f {
+		add = event.ShouldAddAndGetIndexes(keys)
+		lru2.Add(string(event.Data), add)
+	} else {
+		add = r.(bool)
+	}
+	return add
+}
 func getData(d *bolt.Bucket, event *proto.Event, lru *simplelru.LRU) {
 
 	dl, found := lru.Get(string(event.Data))
 	data := proto.Data{}
-	if !found{
+	if !found {
 		var bufferd bytes.Buffer
 		bufferd.Write(d.Get(event.Data))
 		data.Unmarshal(bufferd.Bytes())
 		lru.Add(string(event.Data), data)
-	}else{
+	} else {
 		data = dl.(proto.Data)
 	}
 

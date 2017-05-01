@@ -183,17 +183,12 @@ func (e *Event) Store(db *bolt.DB) {
 			log.Fatal(err)
 		}
 		var meta Meta
-		meta.Retrieve(db)
-		meta.Unique++
-		meta.Store(db)
+		meta.IncUnique(db)
 	}
 	e.D = nil
 	marshal, err := e.Marshal()
 	var meta Meta
-	meta.Retrieve(db)
-	meta.Count++
-
-	meta.Store(db)
+	meta.IncCount(db)
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
