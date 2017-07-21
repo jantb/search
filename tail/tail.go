@@ -15,10 +15,10 @@ import (
 
 func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
-		ReOpen:                                               true,
-		Poll:                                                 fileMonitor.Poll,
-		Logger:                                               tail.DiscardingLogger,
-		Location:                                             &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
+		ReOpen:   true,
+		Poll:     fileMonitor.Poll,
+		Logger:   tail.DiscardingLogger,
+		Location: &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
 	key := []byte{}
 	var tt time.Time
 	f := ""
@@ -39,7 +39,9 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		var ok int
 		text = text[len(prefix):]
 		if len(text) > len(f) {
-			ti, err := time.Parse(f, strings.Replace(text[:len(f)], ",", ".", -1))
+			s := strings.Replace(text[:len(f)], ",", ".", -1)
+			s = strings.Replace(s, "T", " ", -1)
+			ti, err := time.Parse(f, s)
 			if err != nil {
 				ok = -1
 			}
@@ -80,9 +82,9 @@ func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 		}
 
 		event = proto.Event{
-			Ts:   uint64(tt.UnixNano()),
-			D:    &proto.Data{
-				Path:fileMonitor.Path,
+			Ts: uint64(tt.UnixNano()),
+			D: &proto.Data{
+				Path: fileMonitor.Path,
 			},
 		}
 		buff.WriteString(text)
@@ -109,7 +111,9 @@ func getPrefix(text string) string {
 func findFormat(text string) string {
 	for _, format := range formats {
 		if len(text) >= len(format) {
-			_, err := time.Parse(format, strings.Replace(text[:len(format)], ",", ".", -1))
+			s := strings.Replace(text[:len(format)], ",", ".", -1)
+			s = strings.Replace(s, "T", " ", -1)
+			_, err := time.Parse(format, s)
 			if err != nil {
 				continue
 			}
