@@ -11,14 +11,74 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/hpcloud/tail"
 	"github.com/jantb/search/proto"
+	"io"
 )
+
+func tailChannel(channel chan(string), source string, db *bolt.DB){
+	key := []byte{}
+	var tt time.Time
+	f := ""
+	buff := bytes.Buffer{}
+	var event proto.Event
+	event.D = &proto.Data{}
+	for text := range channel {
+		prefix := getPrefix(text)
+		if f == "" {
+			f = findFormat(text)
+		}
+		if f == "" {
+			continue
+		}
+		var ok int
+		text = text[len(prefix):]
+		if len(text) > len(f) {
+			s := strings.Replace(text[:len(f)], ",", ".", -1)
+			s = strings.Replace(s, "T", " ", -1)
+			ti, err := time.Parse(f, s)
+			if err != nil {
+				ok = -1
+			}
+			// New event found
+			if ok == 0 {
+				tt = ti
+				text = prefix + text[len(f)+1:]
+				event.SetData(buff.String())
+				found := event.Exists(db)
+				if !found && buff.Len() > 0 {
+					event.Store(db)
+					ok = 1
+				}
+				buff.Reset()
+			}
+		}
+
+		// Multiline entry add to last timestamp
+		if ok == -1 || ok == 0 {
+			if key == nil {
+				continue
+			}
+			buff.WriteString("\n" + text)
+			event.IncrementLines()
+
+			continue
+		}
+
+		event = proto.Event{
+			Ts: uint64(tt.UnixNano()),
+			D: &proto.Data{
+				Path: source,
+			},
+		}
+		buff.WriteString(text)
+	}
+}
 
 func tailFile(fileMonitor proto.FileMonitor, db *bolt.DB) {
 	t, err := tail.TailFile(fileMonitor.Path, tail.Config{Follow: true,
 		ReOpen:   true,
 		Poll:     fileMonitor.Poll,
 		Logger:   tail.DiscardingLogger,
-		Location: &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: os.SEEK_SET}})
+		Location: &tail.SeekInfo{Offset: fileMonitor.Offset, Whence: io.SeekStart}})
 	key := []byte{}
 	var tt time.Time
 	f := ""
