@@ -12,7 +12,73 @@ import (
 	"github.com/hpcloud/tail"
 	"github.com/jantb/search/proto"
 	"io"
+	"os/exec"
 )
+
+func tailArray(s []string, source string, db *bolt.DB) {
+	key := []byte{}
+	var tt time.Time
+	f := ""
+	buff := bytes.Buffer{}
+	var event proto.Event
+	event.D = &proto.Data{}
+	for _, text := range s {
+		prefix := getPrefix(text)
+		if f == "" {
+			f = findFormat(text)
+		}
+		if f == "" {
+			continue
+		}
+		var ok int
+		text = text[len(prefix):]
+		if len(text) > len(f) {
+			s := strings.Replace(text[:len(f)], ",", ".", -1)
+			s = strings.Replace(s, "T", " ", -1)
+			ti, err := time.Parse(f, s)
+			if err != nil {
+				ok = -1
+			}
+			// New event found
+			if ok == 0 {
+				tt = ti
+				text = prefix + text[len(f)+1:]
+				event.SetData(buff.String())
+				found := event.Exists(db)
+				if !found && buff.Len() > 0 {
+					event.Store(db)
+					ok = 1
+				}
+				buff.Reset()
+			}
+		}
+
+		// Multiline entry add to last timestamp
+		if ok == -1 || ok == 0 {
+			if key == nil {
+				continue
+			}
+			buff.WriteString("\n" + text)
+			event.IncrementLines()
+
+			continue
+		}
+
+		event = proto.Event{
+			Ts: uint64(tt.UnixNano()),
+			D: &proto.Data{
+				Path: source,
+			},
+		}
+		buff.WriteString(text)
+	}
+	event.SetData(buff.String())
+	found := event.Exists(db)
+	if !found && buff.Len() > 0 {
+		event.Store(db)
+	}
+	buff.Reset()
+}
 
 func tailChannel(channel chan(string), source string, db *bolt.DB){
 	key := []byte{}
@@ -202,6 +268,41 @@ var formats = []string{
 	time.RFC1123Z,
 	time.RFC3339,
 	time.RFC3339Nano,
+}
+
+func TailShellCommand(filename string, db *bolt.DB) {
+	cmd := exec.Command(filename)
+	cmdOutput := &bytes.Buffer{}
+	cmd.Stdout = cmdOutput
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	output := string(cmdOutput.Bytes())
+	split := strings.Split(output, "\n")
+	found := false
+	for _, value := range split {
+		if value == "log commands" {
+			found = true
+			continue
+		}
+		if value == "" {
+			continue
+		}
+		if found {
+			c := strings.Split(value," ")
+			cmd := exec.Command(c[0], c[1:]...)
+			cmdOutput := &bytes.Buffer{}
+			cmd.Stdout = cmdOutput
+			err := cmd.Run()
+			if err != nil {
+				log.Fatal(err)
+			}
+			output := string(cmdOutput.Bytes())
+			split := strings.Split(output, "\n")
+			go tailArray(split, value, db)
+		}
+	}
 }
 
 func TailAllFiles(db *bolt.DB) {

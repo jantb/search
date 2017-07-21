@@ -18,6 +18,7 @@ import (
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
+var logCommands = flag.String("logCommands", "", "script that generates log commands, parses after 'log commands'")
 var poll = flag.Bool("poll", false, "use poll")
 var db *bolt.DB
 
@@ -37,6 +38,11 @@ func main() {
 
 	if *filename != "" {
 		tail.AddFileToTail(*filename, *poll, db)
+		return
+	}
+	if *logCommands != "" {
+		tail.TailShellCommand(*logCommands, db)
+		gui.Run(db)
 		return
 	}
 
