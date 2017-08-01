@@ -13,8 +13,8 @@ import (
 	"github.com/jantb/search/tail"
 )
 import (
-//"net/http"
-//	_ "net/http/pprof"
+"net/http"
+	_ "net/http/pprof"
 )
 
 var filename = flag.String("add", "", "Filename to monitor")
@@ -32,7 +32,7 @@ func main() {
 	syscall.Dup2(int(logFile.Fd()), 1)
 	syscall.Dup2(int(logFile.Fd()), 2)
 	flag.Parse()
-
+	go http.ListenAndServe(":8181", http.DefaultServeMux)
 	db = getDb()
 	defer db.Close()
 
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	tail.TailAllFiles(db)
-	//go http.ListenAndServe(":8080", http.DefaultServeMux)
+
 	gui.Run(db)
 }
 

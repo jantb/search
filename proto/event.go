@@ -181,7 +181,7 @@ func (e *Event) Store(db *bolt.DB) {
 	if !found {
 		e.BloomUpdate(db)
 		da, _ := e.D.Marshal()
-		err = db.Update(func(tx *bolt.Tx) error {
+		err = db.Batch(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("Data"))
 			b.Put(e.Data, da)
 			return nil
@@ -195,7 +195,7 @@ func (e *Event) Store(db *bolt.DB) {
 	var meta Meta
 	meta.IncCount(db)
 
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Events"))
 		b.Put(getStoreKey(e), []byte{})
 		return nil
