@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	"github.com/jroimartin/gocui"
 	"log"
 	"strconv"
 	"strings"
@@ -27,7 +25,6 @@ func (l LogLine) getTime() time.Time {
 }
 
 func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine) {
-	db, err := sql.Open("sqlite3", "./.search.db")
 
 	var q = ""
 	if offset > 0 && len(prev) >= offset+1 {
@@ -51,8 +48,6 @@ func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine) {
 	rows, err := db.Query(q)
 
 	checkErr(err)
-	timestamps = timestamps[:0]
-	ids = ids[:0]
 	for rows.Next() {
 		line := LogLine{}
 		err = rows.Scan(&line.Id, &line.Time, &line.Body)
@@ -65,7 +60,6 @@ func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine) {
 		reverseLogline(ret)
 	}
 	defer rows.Close()
-	defer db.Close()
 	if len(ret) != len(prev) && len(prev) > 0 {
 		return prev
 	}
