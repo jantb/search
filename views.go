@@ -6,14 +6,28 @@ import (
 
 // View: Logs
 func viewLogs(g *gocui.Gui, maxX int, maxY int) error {
-	if v, err := g.SetView("logs", -1, -1, maxX+1, maxY-1); err != nil {
+	if v, err := g.SetView("logs", -1, -1, maxX+1, maxY-2); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Highlight = true
+		v.Highlight = false
 		v.Title = " Logs "
-		v.Autoscroll = true
+		v.Autoscroll = false
+		v.Wrap = true
 		v.Frame = false
+	}
+	return nil
+}
+
+// View: Commands
+func viewStatus(g *gocui.Gui, maxX int, maxY int) error {
+	if v, err := g.SetView("status", -1, maxY-3, maxX, maxY-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Wrap = false
+		v.Frame = false
+		v.FgColor = gocui.ColorCyan
 	}
 	return nil
 }
@@ -28,7 +42,7 @@ func viewCommands(g *gocui.Gui, maxX int, maxY int) error {
 
 		v.Editable = true
 		v.Wrap = false
-		v.Frame = true
+		v.Frame = false
 
 		v.Editor = gocui.EditorFunc(editor)
 		if _, err := g.SetCurrentView("commands"); err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
 )
 
@@ -49,15 +50,33 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	}
 }
 
+var printBlue = color.New(color.FgBlue).Sprint
+var printRed = color.New(color.FgRed).Sprint
+var runeTL, runeTR, runeBL, runeBR = '┌', '┐', '└', '┘'
+var runeH, runeV = '─', '│'
+
 func renderSearch(v *gocui.View, offset int) {
 	gui.Update(func(g *gocui.Gui) error {
 		view, e := gui.View("logs")
 		checkErr(e)
-		_, y := view.Size()
-		logLinesPrev = s(v.Buffer(), y, offset, logLinesPrev)
+		x, y := view.Size()
+		l, t := s(v.Buffer(), y, offset, logLinesPrev)
+		logLinesPrev = l
 		view.Clear()
 		for _, value := range logLinesPrev {
-			fmt.Fprintf(view, "%s %s\n", value.getTime(), value.Body)
+			fmt.Fprintf(view, "%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05.999")), printRed(value.Level), value.Body)
+		}
+		view, e = gui.View("status")
+		checkErr(e)
+		view.Clear()
+
+		for i := 0; i < x-20; i++ {
+			fmt.Fprint(view, " ")
+		}
+		fmt.Fprintf(view, "┌─%s", t)
+		cx, _ := v.Cursor()
+		for i := cx; i < x; i++ {
+			fmt.Fprint(view, "─")
 		}
 		return nil
 	})

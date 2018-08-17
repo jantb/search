@@ -177,7 +177,7 @@ func readFromPipe() {
 							md[n1[i]] = n
 						}
 						timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
-						insertLineToDb("insert into log(time, body) values(?, ?)", timestamp, md["body"])
+						insertLineToDb("insert into log(time,level, body) values(?, ?, ?)", timestamp, md["level"], md["body"])
 					}
 				}
 			}
@@ -202,7 +202,6 @@ func insertLineToDb(statement string, args ...interface{}) {
 	defer stmt.Close()
 	_, err = stmt.Exec(args...)
 	checkErr(err)
-	//fmt.Println(s.RowsAffected())
 	tx.Commit()
 }
 
@@ -238,6 +237,7 @@ func keybindings(g *gocui.Gui) error {
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	viewLogs(g, maxX, maxY)
+	viewStatus(g, maxX, maxY)
 	viewCommands(g, maxX, maxY)
 	return nil
 }
