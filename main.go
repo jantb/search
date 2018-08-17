@@ -136,7 +136,7 @@ func main() {
 }
 func parseTimestamp(regex Regex, timestamp string) time.Time {
 	s := regex.Timestamp
-	date, e := time.ParseInLocation(s, timestamp, time.Local)
+	date, e := time.ParseInLocation(s, strings.Replace(timestamp, ",", ".", -1), time.Local)
 	checkErr(e)
 	if date.Year() == 0 {
 		date = date.AddDate(time.Now().Year(), 0, 0)
