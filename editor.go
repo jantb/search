@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
+	"time"
 )
 
 var logLinesPrev []LogLine
@@ -70,10 +71,14 @@ func renderSearch(v *gocui.View, offset int) {
 		checkErr(e)
 		view.Clear()
 
-		for i := 0; i < x-20; i++ {
+		for i := 0; i < x-100; i++ {
 			fmt.Fprint(view, " ")
 		}
-		fmt.Fprintf(view, "┌─%s", t)
+		if bottom.Load() && len(logLinesPrev) > 0 {
+			fmt.Fprintf(view, "┌─%s──Last message: %s ago", t, fmt.Sprint(time.Now().Sub(logLinesPrev[len(logLinesPrev)-1].getTime())))
+		} else {
+			fmt.Fprintf(view, "┌─%s──", t)
+		}
 		cx, _ := v.Cursor()
 		for i := cx; i < x; i++ {
 			fmt.Fprint(view, "─")

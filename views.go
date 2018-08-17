@@ -45,6 +45,7 @@ func viewCommands(g *gocui.Gui, maxX int, maxY int) error {
 		v.Frame = false
 
 		v.Editor = gocui.EditorFunc(editor)
+		bottom.Store(true)
 		if _, err := g.SetCurrentView("commands"); err != nil {
 			return err
 		}

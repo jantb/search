@@ -6,7 +6,9 @@ func getDBStatement_log() string {
   time  INTEGER,
   level TEXT,
   body  TEXT
-);`
+);
+CREATE  INDEX index_timestamp ON log(time);
+`
 }
 
 func initDB() {

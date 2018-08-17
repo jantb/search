@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/jroimartin/gocui"
 	_ "github.com/mattn/go-sqlite3"
+	"go.uber.org/atomic"
 	"io"
 	"io/ioutil"
 	"log"
@@ -22,9 +23,10 @@ var db *sql.DB
 
 var formats Formats
 var gui *gocui.Gui
+var bottom atomic.Bool
 
 func main() {
-
+	bottom.Store(false)
 	usr, err := user.Current()
 	if err != nil {
 		log.Fatal(err)
@@ -59,81 +61,6 @@ func main() {
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
-
-	//tx, err := db.Begin()
-	//checkErr(err)
-	//stmt, err := tx.Prepare("insert into foo(id, name) values(?, ?)")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//defer stmt.Close()
-	//for i := 0; i < 100; i++ {
-	//	_, err = stmt.Exec(i, fmt.Sprintf("こんにちわ世界%03d", i))
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//}
-	//tx.Commit()
-	//
-	//rows, err := db.Query("select id, name from foo")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//defer rows.Close()
-	//for rows.Next() {
-	//	var id int
-	//	var name string
-	//	err = rows.Scan(&id, &name)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//	fmt.Println(id, name)
-	//}
-	//err = rows.Err()
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//stmt, err = db.Prepare("select name from foo where id = ?")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//defer stmt.Close()
-	//var name string
-	//err = stmt.QueryRow("3").Scan(&name)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//fmt.Println(name)
-	//
-	//_, err = db.Exec("delete from foo")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//_, err = db.Exec("insert into foo(id, name) values(1, 'foo'), (2, 'bar'), (3, 'baz')")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//rows, err = db.Query("select id, name from foo")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//defer rows.Close()
-	//for rows.Next() {
-	//	var id int
-	//	var name string
-	//	err = rows.Scan(&id, &name)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//	fmt.Println(id, name)
-	//}
-	//err = rows.Err()
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
 }
 func parseTimestamp(regex Regex, timestamp string) time.Time {
 	s := regex.Timestamp
@@ -178,6 +105,11 @@ func readFromPipe() {
 						}
 						timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
 						insertLineToDb("insert into log(time,level, body) values(?, ?, ?)", timestamp, md["level"], md["body"])
+						if bottom.Load() {
+							v, e := gui.View("commands")
+							checkErr(e)
+							renderSearch(v, 0)
+						}
 					}
 				}
 			}
