@@ -9,7 +9,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/atomic"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/user"
@@ -82,41 +81,33 @@ func readFromPipe() {
 	}
 	readFormats()
 	reader := bufio.NewReader(os.Stdin)
-	var output []rune
 
 	for {
-		input, _, err := reader.ReadRune()
+		line, _, err := reader.ReadLine()
 		if err != nil && err == io.EOF {
 			fmt.Print("No more to read, terminating")
 			break
 		}
-		if input == '\n' {
-			line := string(output)
-			for _, format := range formats {
-				for _, regex := range format.Regex {
-					r, _ := regexp.Compile(regex.Regex)
-					match := r.Match([]byte(line))
-					if match {
-						n1 := r.SubexpNames()
-						r2 := r.FindAllStringSubmatch(line, -1)[0]
-						md := map[string]string{}
-						for i, n := range r2 {
-							md[n1[i]] = n
-						}
-						timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
-						insertLineToDb("insert into log(time,level, body) values(?, ?, ?)", timestamp, md["level"], md["body"])
-						if bottom.Load() {
-							v, e := gui.View("commands")
-							checkErr(e)
-							renderSearch(v, 0)
-						}
+		for _, format := range formats {
+			for _, regex := range format.Regex {
+				match := regex.RegexCompiled.Match([]byte(line))
+				if match {
+					n1 := regex.RegexCompiled.SubexpNames()
+					r2 := regex.RegexCompiled.FindAllStringSubmatch(string(line), -1)[0]
+					md := map[string]string{}
+					for i, n := range r2 {
+						md[n1[i]] = n
+					}
+					timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
+					insertLineToDb("insert or replace into log(time,level, body) values(?, ?, ?)", timestamp, md["level"], md["body"])
+					if bottom.Load() {
+						v, e := gui.View("commands")
+						checkErr(e)
+						renderSearch(v, 0)
 					}
 				}
 			}
-			output = output[:0]
 		}
-
-		output = append(output, input)
 	}
 }
 
@@ -125,6 +116,7 @@ func toMillis(time time.Time) int64 {
 }
 
 func insertLineToDb(statement string, args ...interface{}) {
+
 	tx, err := db.Begin()
 	checkErr(err)
 	stmt, err := tx.Prepare(statement)
@@ -142,17 +134,23 @@ type Formats []struct {
 	Multiline bool    `json:"multiline"`
 	Regex     []Regex `json:"regex"`
 }
+
 type Regex struct {
-	Name      string `json:"name"`
-	Regex     string `json:"regex"`
-	Timestamp string `json:"timestamp"`
+	Name          string `json:"name"`
+	Regex         string `json:"regex"`
+	RegexCompiled *regexp.Regexp
+	Timestamp     string `json:"timestamp"`
 }
 
 func readFormats() {
-	bytes, err := ioutil.ReadFile("formats.json")
-	checkErr(err)
-	e := json.Unmarshal(bytes, &formats)
+	e := json.Unmarshal([]byte(format), &formats)
 	checkErr(e)
+	for i, format := range formats {
+		for ii, regex := range format.Regex {
+			r, _ := regexp.Compile(regex.Regex)
+			formats[i].Regex[ii].RegexCompiled = r
+		}
+	}
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {

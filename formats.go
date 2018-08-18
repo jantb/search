@@ -1,4 +1,6 @@
-[
+package main
+
+var format = `[
   {
     "title":"Osx system log",
     "multiline" : false,
@@ -21,4 +23,4 @@
       }
     ]
   }
-]
+]`

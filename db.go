@@ -5,7 +5,8 @@ func getDBStatement_log() string {
   id  INTEGER PRIMARY KEY,
   time  INTEGER,
   level TEXT,
-  body  TEXT
+  body  TEXT,
+  CONSTRAINT line_unique UNIQUE (time, body)
 );
 CREATE  INDEX index_timestamp ON log(time);
 `

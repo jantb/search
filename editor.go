@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
+	"golang.org/x/sync/semaphore"
 	"time"
 )
 
@@ -30,6 +31,7 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		if buf != "" && len(buf) > (x+2) {
 			v.MoveCursor(1, 0, false)
 		}
+		return
 	case gocui.KeyArrowUp:
 		renderSearch(v, 1)
 		return
@@ -55,36 +57,40 @@ var printBlue = color.New(color.FgBlue).Sprint
 var printRed = color.New(color.FgRed).Sprint
 var runeTL, runeTR, runeBL, runeBR = '┌', '┐', '└', '┘'
 var runeH, runeV = '─', '│'
+var renderSearchSemaphore = semaphore.NewWeighted(int64(1))
 
 func renderSearch(v *gocui.View, offset int) {
-	gui.Update(func(g *gocui.Gui) error {
-		view, e := gui.View("logs")
-		checkErr(e)
-		x, y := view.Size()
-		l, t := s(v.Buffer(), y, offset, logLinesPrev)
-		logLinesPrev = l
-		view.Clear()
-		for _, value := range logLinesPrev {
-			fmt.Fprintf(view, "%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05.999")), printRed(value.Level), value.Body)
-		}
-		view, e = gui.View("status")
-		checkErr(e)
-		view.Clear()
+	if renderSearchSemaphore.TryAcquire(1) {
+		gui.Update(func(g *gocui.Gui) error {
+			defer renderSearchSemaphore.Release(1)
+			view, e := gui.View("logs")
+			checkErr(e)
+			x, y := view.Size()
+			l, t := s(v.Buffer(), y, offset, logLinesPrev)
+			logLinesPrev = l
+			view.Clear()
+			for _, value := range logLinesPrev {
+				fmt.Fprintf(view, "%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05.999")), printRed(value.Level), value.Body)
+			}
+			view, e = gui.View("status")
+			checkErr(e)
+			view.Clear()
 
-		for i := 0; i < x-100; i++ {
-			fmt.Fprint(view, " ")
-		}
-		if bottom.Load() && len(logLinesPrev) > 0 {
-			fmt.Fprintf(view, "┌─%s──Last message: %s ago", t, fmt.Sprint(time.Now().Sub(logLinesPrev[len(logLinesPrev)-1].getTime())))
-		} else {
-			fmt.Fprintf(view, "┌─%s──", t)
-		}
-		cx, _ := v.Cursor()
-		for i := cx; i < x; i++ {
-			fmt.Fprint(view, "─")
-		}
-		return nil
-	})
+			for i := 0; i < x-100; i++ {
+				fmt.Fprint(view, " ")
+			}
+			if bottom.Load() && len(logLinesPrev) > 0 {
+				fmt.Fprintf(view, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(time.Now().Sub(logLinesPrev[len(logLinesPrev)-1].getTime())), logLinesPrev[len(logLinesPrev)-1].Id)
+			} else {
+				fmt.Fprintf(view, "┌─%s──", t)
+			}
+			cx, _ := v.Cursor()
+			for i := cx; i < x; i++ {
+				fmt.Fprint(view, "─")
+			}
+			return nil
+		})
+	}
 }
 
 func moveAhead(v *gocui.View) {
