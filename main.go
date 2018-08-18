@@ -47,7 +47,9 @@ func main() {
 	}
 	gui = g
 	defer g.Close()
-	go readFromPipe()
+	insertChan := make(chan string, 10000)
+	go insertIntoDb(insertChan)
+	go readFromPipe(insertChan)
 
 	g.Cursor = true
 
@@ -70,8 +72,51 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 	}
 	return date
 }
+func insertIntoDb(insertChan chan string) {
+	for {
+		length := len(insertChan)
+		if length > 0 {
+			tx, err := db.Begin()
+			checkErr(err)
+			stmt, err := tx.Prepare("insert or replace into log(time,level, body) values(?, ?, ?)")
+			if err != nil {
+				log.Fatal(err)
+			}
+			for i := 0; i < length; i++ {
+				line := <-insertChan
+				for _, format := range formats {
+					for _, regex := range format.Regex {
+						match := regex.RegexCompiled.Match([]byte(line))
+						if match {
+							n1 := regex.RegexCompiled.SubexpNames()
+							r2 := regex.RegexCompiled.FindAllStringSubmatch(string(line), -1)[0]
+							md := map[string]string{}
+							for i, n := range r2 {
+								md[n1[i]] = n
+							}
+							timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
 
-func readFromPipe() {
+							_, err = stmt.Exec(timestamp, md["level"], md["body"])
+							checkErr(err)
+						}
+					}
+				}
+			}
+			stmt.Close()
+			tx.Commit()
+		} else {
+			time.Sleep(time.Second)
+		}
+
+		if bottom.Load() {
+			v, e := gui.View("commands")
+			checkErr(e)
+			renderSearch(v, 0)
+		}
+	}
+}
+
+func readFromPipe(insertChan chan string) {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
 		panic(err)
@@ -88,26 +133,7 @@ func readFromPipe() {
 			fmt.Print("No more to read, terminating")
 			break
 		}
-		for _, format := range formats {
-			for _, regex := range format.Regex {
-				match := regex.RegexCompiled.Match([]byte(line))
-				if match {
-					n1 := regex.RegexCompiled.SubexpNames()
-					r2 := regex.RegexCompiled.FindAllStringSubmatch(string(line), -1)[0]
-					md := map[string]string{}
-					for i, n := range r2 {
-						md[n1[i]] = n
-					}
-					timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
-					insertLineToDb("insert or replace into log(time,level, body) values(?, ?, ?)", timestamp, md["level"], md["body"])
-					if bottom.Load() {
-						v, e := gui.View("commands")
-						checkErr(e)
-						renderSearch(v, 0)
-					}
-				}
-			}
-		}
+		insertChan <- string(line)
 	}
 }
 
