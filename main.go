@@ -78,15 +78,16 @@ func insertIntoDb(insertChan chan string) {
 		if length > 0 {
 			tx, err := db.Begin()
 			checkErr(err)
-			stmt, err := tx.Prepare("insert or replace into log(time,level, body) values(?, ?, ?)")
+			stmt, err := tx.Prepare("insert into log(time,level, body) values(?, ?, ?)")
 			if err != nil {
 				log.Fatal(err)
 			}
 			for i := 0; i < length; i++ {
 				line := <-insertChan
+				match := false
 				for _, format := range formats {
 					for _, regex := range format.Regex {
-						match := regex.RegexCompiled.Match([]byte(line))
+						match = regex.RegexCompiled.Match([]byte(line))
 						if match {
 							n1 := regex.RegexCompiled.SubexpNames()
 							r2 := regex.RegexCompiled.FindAllStringSubmatch(string(line), -1)[0]
@@ -98,9 +99,14 @@ func insertIntoDb(insertChan chan string) {
 
 							_, err = stmt.Exec(timestamp, md["level"], md["body"])
 							checkErr(err)
+							break
 						}
 					}
+					if match {
+						break
+					}
 				}
+
 			}
 			stmt.Close()
 			tx.Commit()
