@@ -110,7 +110,6 @@ func insertIntoDb(insertChan chan string) {
 					continue
 				}
 				logLines = append(logLines, logLine)
-
 			}
 			insertLoglinesToDb(logLines)
 		} else {
@@ -132,12 +131,12 @@ func insertLoglinesToDb(logLines []LogLine) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer stmt.Close()
+	defer tx.Commit()
 	for _, logLine := range logLines {
 		_, err = stmt.Exec(logLine.Time, logLine.Level, logLine.Body)
 		checkErr(err)
 	}
-	stmt.Close()
-	tx.Commit()
 }
 
 func readFromPipe(insertChan chan string) {
@@ -163,20 +162,6 @@ func readFromPipe(insertChan chan string) {
 
 func toMillis(time time.Time) int64 {
 	return time.UnixNano() / 1000000
-}
-
-func insertLineToDb(statement string, args ...interface{}) {
-
-	tx, err := db.Begin()
-	checkErr(err)
-	stmt, err := tx.Prepare(statement)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(args...)
-	checkErr(err)
-	tx.Commit()
 }
 
 type Formats []struct {

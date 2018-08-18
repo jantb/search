@@ -5,6 +5,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
 	"golang.org/x/sync/semaphore"
+	"strings"
 	"time"
 )
 
@@ -55,6 +56,7 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 
 var printBlue = color.New(color.FgBlue).Sprint
 var printRed = color.New(color.FgRed).Sprint
+var printYellowBack = color.New(color.BgYellow, color.FgBlack).Sprint
 var runeTL, runeTR, runeBL, runeBR = '┌', '┐', '└', '┘'
 var runeH, runeV = '─', '│'
 var renderSearchSemaphore = semaphore.NewWeighted(int64(1))
@@ -70,7 +72,9 @@ func renderSearch(v *gocui.View, offset int) {
 			logLinesPrev = l
 			view.Clear()
 			for _, value := range logLinesPrev {
-				fmt.Fprintf(view, "%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05.999")), printRed(value.Level), value.Body)
+				buffer := strings.TrimSpace(v.Buffer())
+				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05.999")), printRed(value.Level), highlight(buffer, value.Body))
+				fmt.Fprint(view, line)
 			}
 			view, e = gui.View("status")
 			checkErr(e)
@@ -92,6 +96,13 @@ func renderSearch(v *gocui.View, offset int) {
 			return nil
 		})
 	}
+}
+
+func highlight(buffer string, line string) string {
+	if len(buffer) > 0 {
+		line = strings.Replace(line, buffer, printYellowBack(buffer), -1)
+	}
+	return line
 }
 
 func moveAhead(v *gocui.View) {
