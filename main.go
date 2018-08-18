@@ -94,7 +94,7 @@ func parseLine(line string) (LogLine, bool) {
 			}
 		}
 	}
-	return LogLine{}, false
+	return LogLine{Body: line}, false
 }
 
 func insertIntoDb(insertChan chan string) {
