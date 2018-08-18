@@ -72,44 +72,47 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 	}
 	return date
 }
+
+func parseLine(line string) (LogLine, bool) {
+	for _, format := range formats {
+		for _, regex := range format.Regex {
+			match := regex.RegexCompiled.Match([]byte(line))
+			if match {
+				n1 := regex.RegexCompiled.SubexpNames()
+				r2 := regex.RegexCompiled.FindAllStringSubmatch(string(line), -1)[0]
+				md := map[string]string{}
+				for i, n := range r2 {
+					md[n1[i]] = n
+				}
+				timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
+				return LogLine{
+					Time:  timestamp,
+					Level: md["level"],
+					Body:  md["body"],
+				}, true
+
+			}
+		}
+	}
+	return LogLine{}, false
+}
+
 func insertIntoDb(insertChan chan string) {
 	for {
 		length := len(insertChan)
 		if length > 0 {
-			tx, err := db.Begin()
-			checkErr(err)
-			stmt, err := tx.Prepare("insert into log(time,level, body) values(?, ?, ?)")
-			if err != nil {
-				log.Fatal(err)
-			}
+			var logLines []LogLine
 			for i := 0; i < length; i++ {
 				line := <-insertChan
-				match := false
-				for _, format := range formats {
-					for _, regex := range format.Regex {
-						match = regex.RegexCompiled.Match([]byte(line))
-						if match {
-							n1 := regex.RegexCompiled.SubexpNames()
-							r2 := regex.RegexCompiled.FindAllStringSubmatch(string(line), -1)[0]
-							md := map[string]string{}
-							for i, n := range r2 {
-								md[n1[i]] = n
-							}
-							timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
 
-							_, err = stmt.Exec(timestamp, md["level"], md["body"])
-							checkErr(err)
-							break
-						}
-					}
-					if match {
-						break
-					}
+				logLine, found := parseLine(line)
+				if !found {
+					continue
 				}
+				logLines = append(logLines, logLine)
 
 			}
-			stmt.Close()
-			tx.Commit()
+			insertLoglinesToDb(logLines)
 		} else {
 			time.Sleep(time.Second)
 		}
@@ -120,6 +123,21 @@ func insertIntoDb(insertChan chan string) {
 			renderSearch(v, 0)
 		}
 	}
+}
+
+func insertLoglinesToDb(logLines []LogLine) {
+	tx, err := db.Begin()
+	checkErr(err)
+	stmt, err := tx.Prepare("insert into log(time,level, body) values(?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, logLine := range logLines {
+		_, err = stmt.Exec(logLine.Time, logLine.Level, logLine.Body)
+		checkErr(err)
+	}
+	stmt.Close()
+	tx.Commit()
 }
 
 func readFromPipe(insertChan chan string) {
