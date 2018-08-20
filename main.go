@@ -41,7 +41,7 @@ func main() {
 	_, err = db.Exec(getDBStatement_log())
 	checkErr(err)
 
-	g, err := gocui.NewGui(gocui.OutputNormal)
+	g, err := gocui.NewGui(gocui.Output256)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -73,7 +73,7 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 	return date
 }
 
-func parseLine(line string) (LogLine, bool) {
+func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 	for _, format := range formats {
 		for _, regex := range format.Regex {
 			match := regex.RegexCompiled.Match([]byte(line))
@@ -83,6 +83,13 @@ func parseLine(line string) (LogLine, bool) {
 				md := map[string]string{}
 				for i, n := range r2 {
 					md[n1[i]] = n
+				}
+				if _, ok := md["timestamp"]; !ok {
+					if len(loglines) == 0 {
+						continue
+					}
+					loglines[len(loglines)-1].Body += "\n" + md["body"]
+					return LogLine{Body: line}, false
 				}
 				timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
 				return LogLine{
@@ -104,8 +111,7 @@ func insertIntoDb(insertChan chan string) {
 			var logLines []LogLine
 			for i := 0; i < length; i++ {
 				line := <-insertChan
-
-				logLine, found := parseLine(line)
+				logLine, found := parseLine(line, logLines)
 				if !found {
 					continue
 				}
@@ -127,7 +133,7 @@ func insertIntoDb(insertChan chan string) {
 func insertLoglinesToDb(logLines []LogLine) {
 	tx, err := db.Begin()
 	checkErr(err)
-	stmt, err := tx.Prepare("insert into log(time,level, body) values(?, ?, ?)")
+	stmt, err := tx.Prepare("insert into log(time, level, body) values(?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}

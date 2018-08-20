@@ -56,7 +56,10 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 
 var printBlue = color.New(color.FgBlue).Sprint
 var printRed = color.New(color.FgRed).Sprint
-var printYellowBack = color.New(color.BgYellow, color.FgBlack).Sprint
+var printYellow = color.New(color.FgYellow).Sprint
+var printGreen = color.New(color.FgGreen).Sprint
+var printWhite = color.New(color.FgWhite).Sprint
+var printYellowBack = color.New(color.BgYellow, color.Faint).Add(color.FgWhite).Sprint
 var runeTL, runeTR, runeBL, runeBR = '┌', '┐', '└', '┘'
 var runeH, runeV = '─', '│'
 var renderSearchSemaphore = semaphore.NewWeighted(int64(1))
@@ -73,7 +76,18 @@ func renderSearch(v *gocui.View, offset int) {
 			view.Clear()
 			for _, value := range logLinesPrev {
 				buffer := strings.TrimSpace(v.Buffer())
-				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05.999")), printRed(value.Level), highlight(buffer, value.Body))
+				levelFunc := printWhite
+				switch value.Level {
+				case "ERROR":
+					levelFunc = printRed
+				case "WARN":
+					levelFunc = printYellow
+				case "INFO":
+					levelFunc = printGreen
+				case "DEBUG":
+					levelFunc = printWhite
+				}
+				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), levelFunc(value.Level), highlight(buffer, value.Body))
 				fmt.Fprint(view, line)
 			}
 			view, e = gui.View("status")
@@ -100,7 +114,10 @@ func renderSearch(v *gocui.View, offset int) {
 
 func highlight(buffer string, line string) string {
 	if len(buffer) > 0 {
-		line = strings.Replace(line, buffer, printYellowBack(buffer), -1)
+		tokens := strings.Split(strings.TrimSpace(buffer), " ")
+		for _, value := range tokens {
+			line = strings.Replace(line, value, printYellowBack(value), -1)
+		}
 	}
 	return line
 }

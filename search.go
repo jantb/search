@@ -26,33 +26,35 @@ func (l LogLine) getTime() time.Time {
 }
 
 func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine, t time.Duration) {
-
+	tokens := strings.Split(strings.TrimSpace(query), " ")
+	query = "body like '%%" + tokens[0] + "%%' "
+	for _, value := range tokens[1:] {
+		query += "and body like '%%" + value + "%%' "
+	}
 	now := time.Now()
 	var q = ""
 	if offset > 0 && len(prev) >= offset+1 {
-		q = fmt.Sprintf("select id, time, level, body from log where (time,id) <= (%d,%d) and body like '%%"+
-			strings.TrimSpace(query)+
-			"%%' order by time desc, id desc limit "+strconv.Itoa(limit), prev[len(prev)-offset-1].Time, prev[len(prev)-offset-1].Id)
+		q = fmt.Sprintf("select id, time, level, body from log where (time,id) <= (%d,%d) "+query+
+			" order by time desc, id desc limit "+
+			strconv.Itoa(limit), prev[len(prev)-offset-1].Time, prev[len(prev)-offset-1].Id)
 		bottom.Store(false)
 	} else if offset < 0 && len(prev) >= -offset+1 {
 		o := -offset
-		q = fmt.Sprintf("select id, time, level, body from log where (time,id) >= (%d,%d) and body like '%%"+
-			strings.TrimSpace(query)+
-			"%%' order by time , id limit "+strconv.Itoa(limit), prev[o].Time, prev[o].Id)
+		q = fmt.Sprintf("select id, time, level, body from log where (time,id) >= (%d,%d) "+query+"order by time , id limit "+strconv.Itoa(limit), prev[o].Time, prev[o].Id)
 		bottom.Store(false)
 	} else if offset == 0 {
 		prev = prev[:0]
-		q = fmt.Sprintf("select id, time, level, body from log where  body like '%%" +
-			strings.TrimSpace(query) +
-			"%%' order by time desc, id desc limit " + strconv.Itoa(limit))
+		q = fmt.Sprintf("select id, time, level, body from log where " + query + "order by time desc, id desc limit " + strconv.Itoa(limit))
 		bottom.Store(true)
 	} else {
 		return prev, time.Now().Sub(now)
 	}
 	rows, err := db.Query(q)
+	if err != nil {
+		return prev, time.Now().Sub(now)
+	}
 	defer rows.Close()
 
-	checkErr(err)
 	for rows.Next() {
 		line := LogLine{}
 		err = rows.Scan(&line.Id, &line.Time, &line.Level, &line.Body)
