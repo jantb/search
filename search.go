@@ -28,8 +28,16 @@ func (l LogLine) getTime() time.Time {
 func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine, t time.Duration) {
 	tokens := strings.Split(strings.TrimSpace(query), " ")
 	query = "body like '%%" + tokens[0] + "%%' "
+	if len(tokens[0]) > 0 && tokens[0][0] == '!' {
+		query = "body not like '%%" + tokens[0][1:] + "%%' "
+	}
+
 	for _, value := range tokens[1:] {
-		query += "and body like '%%" + value + "%%' "
+		if len(value) > 0 && value[0] == '!' {
+			query += "and body not like '%%" + value[1:] + "%%' "
+		} else {
+			query += "and body like '%%" + value + "%%' "
+		}
 	}
 	now := time.Now()
 	var q = ""
@@ -50,6 +58,7 @@ func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine, t ti
 		return prev, time.Now().Sub(now)
 	}
 	rows, err := db.Query(q)
+
 	if err != nil {
 		return prev, time.Now().Sub(now)
 	}
