@@ -25,7 +25,7 @@ func (l LogLine) getTime() time.Time {
 	return time.Unix(0, l.Time*1000000)
 }
 
-func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine, t time.Duration) {
+func search(query string, limit int, offset int, prev []LogLine) (ret []LogLine, t time.Duration) {
 	tokens := strings.Split(strings.TrimSpace(query), " ")
 	query = "body like '%%" + tokens[0] + "%%' "
 	if len(tokens[0]) > 0 && tokens[0][0] == '!' {

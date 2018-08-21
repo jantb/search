@@ -71,7 +71,7 @@ func renderSearch(v *gocui.View, offset int) {
 			view, e := gui.View("logs")
 			checkErr(e)
 			x, y := view.Size()
-			l, t := s(v.Buffer(), y, offset, logLinesPrev)
+			l, t := search(v.Buffer(), y, offset, logLinesPrev)
 			logLinesPrev = l
 			view.Clear()
 			for _, value := range logLinesPrev {
