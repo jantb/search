@@ -15,18 +15,15 @@ import (
 )
 
 var db *sql.DB
-
-func getDBStatement_log() string {
-	return `create table log (
+var dbStatement = `
+create table log (
   id  INTEGER PRIMARY KEY,
   time  INTEGER,
   level TEXT,
   body  TEXT
 );
 CREATE  INDEX index_timestamp ON log(time);
-
 `
-}
 
 func initStore() {
 	usr, err := user.Current()
@@ -40,7 +37,7 @@ func initStore() {
 	db = dbs
 	checkErr(err)
 
-	_, err = db.Exec(getDBStatement_log())
+	_, err = db.Exec(dbStatement)
 	checkErr(err)
 }
 
