@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/jroimartin/gocui"
@@ -11,14 +10,10 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/user"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 )
-
-var db *sql.DB
 
 var formats Formats
 var gui *gocui.Gui
@@ -26,20 +21,8 @@ var bottom atomic.Bool
 
 func main() {
 	bottom.Store(false)
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	os.Remove(filepath.Join(usr.HomeDir, ".search.db"))
-
-	dbs, err := sql.Open("sqlite3", filepath.Join(usr.HomeDir, ".search.db"))
-	db = dbs
-	checkErr(err)
-	defer db.Close()
-
-	_, err = db.Exec(getDBStatement_log())
-	checkErr(err)
+	initStore()
 
 	g, err := gocui.NewGui(gocui.Output256)
 	if err != nil {
@@ -117,7 +100,7 @@ func insertIntoDb(insertChan chan string) {
 				}
 				logLines = append(logLines, logLine)
 			}
-			insertLoglinesToDb(logLines)
+			insertLoglinesToStore(logLines)
 		} else {
 			time.Sleep(time.Second)
 		}
@@ -127,21 +110,6 @@ func insertIntoDb(insertChan chan string) {
 			checkErr(e)
 			renderSearch(v, 0)
 		}
-	}
-}
-
-func insertLoglinesToDb(logLines []LogLine) {
-	tx, err := db.Begin()
-	checkErr(err)
-	stmt, err := tx.Prepare("insert into log(time, level, body) values(?, ?, ?)")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmt.Close()
-	defer tx.Commit()
-	for _, logLine := range logLines {
-		_, err = stmt.Exec(logLine.Time, logLine.Level, logLine.Body)
-		checkErr(err)
 	}
 }
 
@@ -195,6 +163,7 @@ func readFormats() {
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
+	cleanupStore()
 	return gocui.ErrQuit
 }
 
