@@ -12,7 +12,7 @@ func viewLogs(g *gocui.Gui, maxX int, maxY int) error {
 		}
 		v.Highlight = false
 		v.Title = " Logs "
-		v.Autoscroll = false
+		v.Autoscroll = true
 		v.Wrap = true
 		v.Frame = false
 	}

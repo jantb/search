@@ -42,13 +42,13 @@ func s(query string, limit int, offset int, prev []LogLine) (ret []LogLine, t ti
 	now := time.Now()
 	var q = ""
 	if offset > 0 && len(prev) >= offset+1 {
-		q = fmt.Sprintf("select id, time, level, body from log where (time,id) <= (%d,%d) "+query+
+		q = fmt.Sprintf("select id, time, level, body from log where (time,id) <= (%d,%d) and "+query+
 			" order by time desc, id desc limit "+
 			strconv.Itoa(limit), prev[len(prev)-offset-1].Time, prev[len(prev)-offset-1].Id)
 		bottom.Store(false)
 	} else if offset < 0 && len(prev) >= -offset+1 {
 		o := -offset
-		q = fmt.Sprintf("select id, time, level, body from log where (time,id) >= (%d,%d) "+query+"order by time , id limit "+strconv.Itoa(limit), prev[o].Time, prev[o].Id)
+		q = fmt.Sprintf("select id, time, level, body from log where (time,id) >= (%d,%d) and "+query+"order by time , id limit "+strconv.Itoa(limit), prev[o].Time, prev[o].Id)
 		bottom.Store(false)
 	} else if offset == 0 {
 		prev = prev[:0]
