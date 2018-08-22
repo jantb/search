@@ -6,14 +6,14 @@ import (
 
 // View: Logs
 func viewLogs(g *gocui.Gui, maxX int, maxY int) error {
-	if v, err := g.SetView("logs", -1, -1, maxX+1, maxY-2); err != nil {
+	if v, err := g.SetView("logs", -1, -1, maxX+1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		v.Highlight = false
 		v.Title = " Logs "
-		v.Autoscroll = true
-		v.Wrap = true
+		v.Autoscroll = false
+		v.Wrap = false
 		v.Frame = false
 	}
 	return nil

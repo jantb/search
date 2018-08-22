@@ -10,7 +10,10 @@ import (
 )
 
 func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
-
+	logs, e := gui.View("logs")
+	checkErr(e)
+	ox, oy := logs.Origin()
+	_, sy := logs.Size()
 	switch key {
 	case gocui.KeySpace:
 		v.EditWrite(' ')
@@ -23,24 +26,33 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		v.MoveCursor(-1, 0, false)
 		moveAhead(v)
 	case gocui.KeyArrowRight:
-		x, _ := v.Cursor()
-		x2, _ := v.Origin()
-		x += x2
-		buf := v.Buffer()
-		if buf != "" && len(buf) > (x+2) {
-			v.MoveCursor(1, 0, false)
-		}
+		v.MoveCursor(1, 0, false)
 		return
 	case gocui.KeyArrowUp:
-		renderSearch(v, 1)
+		logs.SetOrigin(ox, oy-1)
+		bottom.Store(false)
+		if oy-1 == 0 {
+			renderSearch(v, 1)
+		}
 		return
 	case gocui.KeyArrowDown:
-		renderSearch(v, -1)
+		logs.SetOrigin(ox, Min(oy+1, len(logs.BufferLines())-sy))
+		if oy == len(logs.BufferLines())-sy {
+			renderSearch(v, -1)
+		}
 		return
 	case gocui.KeyPgup:
+		logs.SetOrigin(ox, oy-10)
+		if oy-1 == 0 {
+			renderSearch(v, 10)
+		}
 		renderSearch(v, 10)
 		return
 	case gocui.KeyPgdn:
+		logs.SetOrigin(ox, Min(oy+10, len(logs.BufferLines())-sy))
+		if oy == len(logs.BufferLines())-sy {
+			renderSearch(v, -10)
+		}
 		renderSearch(v, -10)
 		return
 	case gocui.KeyEnter:
@@ -50,6 +62,19 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	if ch != 0 && mod == 0 {
 		v.EditWrite(ch)
 	}
+}
+func Min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+func Max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
 }
 
 var printBlue = color.New(color.FgBlue).Sprint
@@ -66,11 +91,11 @@ func renderSearch(v *gocui.View, offset int) {
 	if renderSearchSemaphore.TryAcquire(1) {
 		gui.Update(func(g *gocui.Gui) error {
 			defer renderSearchSemaphore.Release(1)
-			view, e := gui.View("logs")
+			logs, e := gui.View("logs")
 			checkErr(e)
-			x, y := view.Size()
+			x, y := logs.Size()
 			l, t := search(v.Buffer(), y, offset)
-			view.Clear()
+			logs.Clear()
 			for _, value := range l {
 				buffer := strings.TrimSpace(v.Buffer())
 				levelFunc := printWhite
@@ -85,24 +110,28 @@ func renderSearch(v *gocui.View, offset int) {
 					levelFunc = printWhite
 				}
 				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), levelFunc(value.Level), highlight(buffer, value.Body))
-				fmt.Fprint(view, line)
+				fmt.Fprint(logs, line)
 			}
-			view, e = gui.View("status")
+			status, e := gui.View("status")
 			checkErr(e)
-			view.Clear()
+			status.Clear()
 
 			for i := 0; i < x-100; i++ {
-				fmt.Fprint(view, " ")
+				fmt.Fprint(status, " ")
 			}
+			ox, oy := logs.Origin()
+			sx, sy := logs.Size()
 			if bottom.Load() && len(l) > 0 {
 				lastMessageDuration := time.Now().Sub(l[len(l)-1].getTime())
-				fmt.Fprintf(view, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), l[len(l)-1].Id)
+				logs.SetOrigin(0, len(logs.BufferLines())-sy)
+				fmt.Fprintf(status, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), l[len(l)-1].Id)
 			} else {
-				fmt.Fprintf(view, "┌─%s──", t)
+
+				fmt.Fprintf(status, "┌─%s──%d──%d──%d──%d──%d──", t, ox, oy, sx, sy, len(logs.BufferLines()))
 			}
 			cx, _ := v.Cursor()
 			for i := cx; i < x; i++ {
-				fmt.Fprint(view, "─")
+				fmt.Fprint(status, "─")
 			}
 			return nil
 		})

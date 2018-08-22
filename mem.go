@@ -81,20 +81,6 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	return ret, time.Now().Sub(now)
 }
 
-func Min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
-func Max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
-}
-
 //CREATE VIRTUAL TABLE log_idx USING fts5(level, body, content='log', content_rowid='id');
 //
 //-- Triggers to keep the FTS index up to date.
