@@ -25,6 +25,8 @@ create table log (
 CREATE  INDEX index_timestamp ON log(time);
 `
 
+var prev []LogLine
+
 func initStore() {
 	usr, err := user.Current()
 	if err != nil {
@@ -60,7 +62,7 @@ func insertLoglinesToStore(logLines []LogLine) {
 	}
 }
 
-func search(query string, limit int, offset int, prev []LogLine) (ret []LogLine, t time.Duration) {
+func search(query string, limit int, offset int) (ret []LogLine, t time.Duration) {
 	tokens := strings.Split(strings.TrimSpace(query), " ")
 	query = "body like '%%" + tokens[0] + "%%' "
 	if len(tokens[0]) > 0 && tokens[0][0] == '!' {
@@ -114,6 +116,7 @@ func search(query string, limit int, offset int, prev []LogLine) (ret []LogLine,
 	if len(ret) != len(prev) && len(prev) > 0 {
 		return prev, time.Now().Sub(now)
 	}
+	prev = ret
 	return ret, time.Now().Sub(now)
 }
 

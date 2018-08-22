@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-var logLinesPrev []LogLine
-
 func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 
 	switch key {
@@ -71,10 +69,9 @@ func renderSearch(v *gocui.View, offset int) {
 			view, e := gui.View("logs")
 			checkErr(e)
 			x, y := view.Size()
-			l, t := search(v.Buffer(), y, offset, logLinesPrev)
-			logLinesPrev = l
+			l, t := search(v.Buffer(), y, offset)
 			view.Clear()
-			for _, value := range logLinesPrev {
+			for _, value := range l {
 				buffer := strings.TrimSpace(v.Buffer())
 				levelFunc := printWhite
 				switch value.Level {
@@ -97,9 +94,9 @@ func renderSearch(v *gocui.View, offset int) {
 			for i := 0; i < x-100; i++ {
 				fmt.Fprint(view, " ")
 			}
-			if bottom.Load() && len(logLinesPrev) > 0 {
-				lastMessageDuration := time.Now().Sub(logLinesPrev[len(logLinesPrev)-1].getTime())
-				fmt.Fprintf(view, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), logLinesPrev[len(logLinesPrev)-1].Id)
+			if bottom.Load() && len(l) > 0 {
+				lastMessageDuration := time.Now().Sub(l[len(l)-1].getTime())
+				fmt.Fprintf(view, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), l[len(l)-1].Id)
 			} else {
 				fmt.Fprintf(view, "┌─%s──", t)
 			}
