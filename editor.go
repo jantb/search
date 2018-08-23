@@ -31,7 +31,7 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	case gocui.KeyArrowUp:
 		logs.SetOrigin(ox, oy-1)
 		bottom.Store(false)
-		if oy-1 == 0 {
+		if oy-1 <= 0 {
 			renderSearch(v, 1)
 		}
 		return
@@ -109,8 +109,19 @@ func renderSearch(v *gocui.View, offset int) {
 				case "DEBUG":
 					levelFunc = printWhite
 				}
-				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), levelFunc(value.Level), highlight(buffer, value.Body))
-				fmt.Fprint(logs, line)
+				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
+				lines := strings.Split(line, "\n")
+				prefix := fmt.Sprintf("%s %s ", value.getTime().Format("2006-01-02T15:04:05"), value.Level)
+				for i1, line := range lines {
+					for i, value := range split([]rune(strings.TrimSpace(line)), x-len(prefix)) {
+						if i1 != 0||i!=0 {
+							for i := 0; i < len(prefix); i++ {
+								fmt.Fprint(logs, " ")
+							}
+						}
+						fmt.Fprint(logs, fmt.Sprintln(string(value)))
+					}
+				}
 			}
 			status, e := gui.View("status")
 			checkErr(e)
@@ -119,15 +130,14 @@ func renderSearch(v *gocui.View, offset int) {
 			for i := 0; i < x-100; i++ {
 				fmt.Fprint(status, " ")
 			}
-			ox, oy := logs.Origin()
-			sx, sy := logs.Size()
+			_, sy := logs.Size()
 			if bottom.Load() && len(l) > 0 {
 				lastMessageDuration := time.Now().Sub(l[len(l)-1].getTime())
 				logs.SetOrigin(0, len(logs.BufferLines())-sy)
 				fmt.Fprintf(status, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), l[len(l)-1].Id)
 			} else {
 
-				fmt.Fprintf(status, "┌─%s──%d──%d──%d──%d──%d──", t, ox, oy, sx, sy, len(logs.BufferLines()))
+				fmt.Fprintf(status, "┌─%s", t, )
 			}
 			cx, _ := v.Cursor()
 			for i := cx; i < x; i++ {
@@ -136,6 +146,19 @@ func renderSearch(v *gocui.View, offset int) {
 			return nil
 		})
 	}
+}
+
+func split(buf []rune, lim int) [][]rune {
+	var chunk []rune
+	chunks := make([][]rune, 0, len(buf)/lim+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
+	}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf[:])
+	}
+	return chunks
 }
 
 func highlight(buffer string, line string) string {
