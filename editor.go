@@ -111,10 +111,14 @@ func renderSearch(v *gocui.View, offset int) {
 					levelFunc = printWhite
 				}
 				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
+
 				prefix := fmt.Sprintf("%s %s ", value.getTime().Format("2006-01-02T15:04:05"), value.Level)
 				if len(line) > x-1 {
 					fmt.Fprintln(logs, line[:x+len(prefix)-8])
 					line = line[x+len(prefix)-8:]
+				} else {
+					fmt.Fprint(logs, line)
+					line = line[:0]
 				}
 				lines := strings.Split(line, "\n")
 				for _, line := range lines {
@@ -122,7 +126,7 @@ func renderSearch(v *gocui.View, offset int) {
 						for i := 0; i < len(prefix); i++ {
 							fmt.Fprint(logs, " ")
 						}
-						fmt.Fprint(logs, fmt.Sprintln(string(value)))
+						fmt.Fprintln(logs, string(value))
 					}
 				}
 			}
