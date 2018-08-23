@@ -79,6 +79,7 @@ func Max(x, y int) int {
 }
 
 var printBlue = color.New(color.FgBlue).Sprint
+var printCyan = color.New(color.FgCyan).Sprint
 var printRed = color.New(color.FgRed).Sprint
 var printYellow = color.New(color.FgYellow).Sprint
 var printGreen = color.New(color.FgGreen).Sprint
@@ -110,20 +111,19 @@ func renderSearch(v *gocui.View, offset int) {
 				case "DEBUG":
 					levelFunc = printWhite
 				}
-				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
-
-				prefix := fmt.Sprintf("%s %s ", value.getTime().Format("2006-01-02T15:04:05"), value.Level)
-				if len(line) > x+len(prefix)-8 {
-					fmt.Fprintln(logs, line[:x+len(prefix)-8])
-					line = line[x+len(prefix)-8:]
+				line := fmt.Sprintf("%s %s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), printCyan(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
+				i := 26
+				if len(line) > x+i {
+					fmt.Fprintln(logs, line[:x+i])
+					line = line[x+i:]
 				} else {
 					fmt.Fprint(logs, line)
 					line = line[:0]
 				}
 				lines := strings.Split(line, "\n")
 				for _, line := range lines {
-					for _, value := range split([]rune(strings.TrimSpace(line)), x-len(prefix)-1) {
-						for i := 0; i < len(prefix); i++ {
+					for _, value := range split([]rune(strings.TrimSpace(line)), x-4) {
+						for i := 0; i < 4; i++ {
 							fmt.Fprint(logs, " ")
 						}
 						fmt.Fprintln(logs, string(value))

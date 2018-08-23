@@ -90,17 +90,17 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	now := time.Now()
 	var q = ""
 	if offset > 0 && len(prev) >= offset+1 {
-		q = fmt.Sprintf("select id, time, level, body from log where (time,id) <= (%d,%d) and "+query+
+		q = fmt.Sprintf("select id, time, system, level, body from log where (time,id) <= (%d,%d) and "+query+
 			" order by time desc, id desc limit "+
 			strconv.Itoa(limit), prev[len(prev)-offset-1].Time, prev[len(prev)-offset-1].Id)
 		bottom.Store(false)
 	} else if offset < 0 && len(prev) >= -offset+1 {
 		o := -offset
-		q = fmt.Sprintf("select id, time, level, body from log where (time,id) >= (%d,%d) and "+query+"order by time , id limit "+strconv.Itoa(limit), prev[o].Time, prev[o].Id)
+		q = fmt.Sprintf("select id, time, system, level, body from log where (time,id) >= (%d,%d) and "+query+"order by time , id limit "+strconv.Itoa(limit), prev[o].Time, prev[o].Id)
 		bottom.Store(false)
 	} else if offset == 0 {
 		prev = prev[:0]
-		q = fmt.Sprintf("select id, time, level, body from log where " + query + "order by time desc, id desc limit " + strconv.Itoa(limit))
+		q = fmt.Sprintf("select id, time, system, level, body from log where " + query + "order by time desc, id desc limit " + strconv.Itoa(limit))
 		bottom.Store(true)
 	} else {
 		return prev, time.Now().Sub(now)
@@ -114,7 +114,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	for rows.Next() {
 		line := LogLine{}
-		err = rows.Scan(&line.Id, &line.Time, &line.Level, &line.Body)
+		err = rows.Scan(&line.Id, &line.Time, &line.System, &line.Level, &line.Body)
 		if err != nil {
 			log.Fatal(err)
 		}
