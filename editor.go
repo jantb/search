@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/fatih/color"
 	"github.com/jroimartin/gocui"
 	"golang.org/x/sync/semaphore"
-	"strings"
-	"time"
 )
 
 func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
@@ -110,14 +111,16 @@ func renderSearch(v *gocui.View, offset int) {
 					levelFunc = printWhite
 				}
 				line := fmt.Sprintf("%s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
-				lines := strings.Split(line, "\n")
 				prefix := fmt.Sprintf("%s %s ", value.getTime().Format("2006-01-02T15:04:05"), value.Level)
-				for i1, line := range lines {
-					for i, value := range split([]rune(strings.TrimSpace(line)), x-len(prefix)) {
-						if i1 != 0||i!=0 {
-							for i := 0; i < len(prefix); i++ {
-								fmt.Fprint(logs, " ")
-							}
+				if len(line) > x-1 {
+					fmt.Fprintln(logs, line[:x+len(prefix)-8])
+					line = line[x+len(prefix)-8:]
+				}
+				lines := strings.Split(line, "\n")
+				for _, line := range lines {
+					for _, value := range split([]rune(strings.TrimSpace(line)), x-len(prefix)-1) {
+						for i := 0; i < len(prefix); i++ {
+							fmt.Fprint(logs, " ")
 						}
 						fmt.Fprint(logs, fmt.Sprintln(string(value)))
 					}
@@ -137,7 +140,7 @@ func renderSearch(v *gocui.View, offset int) {
 				fmt.Fprintf(status, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), l[len(l)-1].Id)
 			} else {
 
-				fmt.Fprintf(status, "┌─%s", t, )
+				fmt.Fprintf(status, "┌─%s", t)
 			}
 			cx, _ := v.Cursor()
 			for i := cx; i < x; i++ {
