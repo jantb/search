@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
@@ -16,13 +15,13 @@ import (
 
 var db *sql.DB
 var dbStatement = `
-create table log (
+create table IF NOT EXISTS log (
   id  INTEGER PRIMARY KEY,
   time  INTEGER,
   level TEXT,
   body  TEXT
 );
-CREATE  INDEX index_timestamp ON log(time);
+CREATE INDEX IF NOT EXISTS index_timestamp ON log(time);
 `
 
 var prev []LogLine
@@ -33,13 +32,13 @@ func initStore() {
 		log.Fatal(err)
 	}
 
-	os.Remove(filepath.Join(usr.HomeDir, ".search.db"))
-
+	//os.Remove(filepath.Join(usr.HomeDir, ".search.db"))
 	dbs, err := sql.Open("sqlite3", filepath.Join(usr.HomeDir, ".search.db"))
 	db = dbs
 	checkErr(err)
 
 	_, err = db.Exec(dbStatement)
+	clearDb()
 	checkErr(err)
 }
 
@@ -47,6 +46,15 @@ func cleanupStore() {
 	db.Close()
 }
 
+func clearDb() {
+	tx, err := db.Begin()
+	checkErr(err)
+	_, err = tx.Exec("delete from log")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Commit()
+}
 func insertLoglinesToStore(logLines []LogLine) {
 	tx, err := db.Begin()
 	checkErr(err)
