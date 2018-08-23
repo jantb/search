@@ -11,10 +11,11 @@ func reverseLogline(numbers []LogLine) {
 }
 
 type LogLine struct {
-	Id    int
-	Level string
-	Time  int64
-	Body  string
+	Id     int
+	Level  string
+	System string
+	Time   int64
+	Body   string
 }
 
 func (l LogLine) getTime() time.Time {

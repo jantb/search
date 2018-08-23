@@ -4,15 +4,15 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/jroimartin/gocui"
-	_ "github.com/mattn/go-sqlite3"
-	"go.uber.org/atomic"
 	"io"
 	"log"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/jroimartin/gocui"
+	"go.uber.org/atomic"
 )
 
 var formats Formats
@@ -76,9 +76,10 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 				}
 				timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
 				return LogLine{
-					Time:  timestamp,
-					Level: md["level"],
-					Body:  md["body"],
+					Time:   timestamp,
+					System: md["system"],
+					Level:  md["level"],
+					Body:   md["body"],
 				}, true
 
 			}

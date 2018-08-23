@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sql.DB
@@ -18,6 +20,7 @@ var dbStatement = `
 create table IF NOT EXISTS log (
   id  INTEGER PRIMARY KEY,
   time  INTEGER,
+  system TEXT, 
   level TEXT,
   body  TEXT
 );
@@ -58,14 +61,14 @@ func clearDb() {
 func insertLoglinesToStore(logLines []LogLine) {
 	tx, err := db.Begin()
 	checkErr(err)
-	stmt, err := tx.Prepare("insert into log(time, level, body) values(?, ?, ?)")
+	stmt, err := tx.Prepare("insert into log(time, system, level, body) values(?, ?, ?, ?)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
 	defer tx.Commit()
 	for _, logLine := range logLines {
-		_, err = stmt.Exec(logLine.Time, logLine.Level, logLine.Body)
+		_, err = stmt.Exec(logLine.Time, logLine.System, logLine.Level, logLine.Body)
 		checkErr(err)
 	}
 }
