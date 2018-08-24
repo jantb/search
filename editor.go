@@ -122,7 +122,7 @@ func renderSearch(v *gocui.View, offset int) {
 				}
 				lines := strings.Split(line, "\n")
 				for _, line := range lines {
-					for _, value := range split([]rune(strings.TrimSpace(line)), x-4) {
+					for _, value := range split([]rune(strings.TrimSpace(line)), x-3) {
 						for i := 0; i < 4; i++ {
 							fmt.Fprint(logs, " ")
 						}

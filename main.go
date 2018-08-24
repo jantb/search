@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -46,6 +45,7 @@ func main() {
 		log.Panicln(err)
 	}
 }
+
 func parseTimestamp(regex Regex, timestamp string) time.Time {
 	s := regex.Timestamp
 	date, e := time.ParseInLocation(s, strings.Replace(timestamp, ",", ".", -1), time.Local)
@@ -128,7 +128,6 @@ func readFromPipe(insertChan chan string) {
 	for {
 		line, _, err := reader.ReadLine()
 		if err != nil && err == io.EOF {
-			fmt.Print("No more to read, terminating")
 			break
 		}
 		insertChan <- string(line)
@@ -167,9 +166,46 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	cleanupStore()
 	return gocui.ErrQuit
 }
+func activatePodCommands(g *gocui.Gui, v *gocui.View) error {
+	g.SetViewOnTop("podCommand")
+	g.SetCurrentView("podCommand")
+
+	return nil
+}
+func deactivatePodCommands(g *gocui.Gui, v *gocui.View) error {
+	g.SetViewOnBottom("podCommand")
+	g.SetCurrentView("commands")
+
+	return nil
+}
+func activateSettings(g *gocui.Gui, v *gocui.View) error {
+	g.SetViewOnTop("settings")
+	g.SetCurrentView("settings")
+
+	return nil
+}
+func deactivateSettings(g *gocui.Gui, v *gocui.View) error {
+	g.SetViewOnBottom("settings")
+	g.SetCurrentView("commands")
+
+	return nil
+}
 
 func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("commands", gocui.KeyCtrlP, gocui.ModNone, activatePodCommands); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlP, gocui.ModNone, deactivatePodCommands); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("", gocui.KeyCtrlS, gocui.ModNone, activateSettings); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("settings", gocui.KeyCtrlS, gocui.ModNone, deactivateSettings); err != nil {
 		return err
 	}
 	return nil
@@ -177,6 +213,8 @@ func keybindings(g *gocui.Gui) error {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
+	viewPodCommand(g, maxX, maxY)
+	viewSettings(g, maxX, maxY)
 	viewLogs(g, maxX, maxY)
 	viewStatus(g, maxX, maxY)
 	viewCommands(g, maxX, maxY)
