@@ -191,6 +191,33 @@ func deactivateSettings(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func settingsDown(g *gocui.Gui, v *gocui.View) error {
+	x, y := v.Cursor()
+	v.SetCursor(x, y-1)
+	return nil
+}
+func settingsUp(g *gocui.Gui, v *gocui.View) error {
+	x, y := v.Cursor()
+	v.SetCursor(x, y+1)
+	return nil
+}
+func settingsEnter(g *gocui.Gui, v *gocui.View) error {
+	g.SetViewOnTop("prompt")
+	g.SetCurrentView("prompt")
+	view, err := g.View("prompt")
+	checkErr(err)
+	view.Clear()
+	view.SetCursor(0,0)
+	return nil
+}
+func enterClose(g *gocui.Gui, v *gocui.View) error {
+	g.SetViewOnBottom("prompt")
+	g.SetCurrentView("settings")
+	//buffer := v.Buffer()
+	//fmt.Print(buffer)
+	return nil
+}
+
 func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		return err
@@ -208,6 +235,18 @@ func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("settings", gocui.KeyCtrlS, gocui.ModNone, deactivateSettings); err != nil {
 		return err
 	}
+	if err := g.SetKeybinding("settings", gocui.KeyArrowDown, gocui.ModNone, settingsUp); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("settings", gocui.KeyArrowUp, gocui.ModNone, settingsDown); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("settings", gocui.KeyEnter, gocui.ModNone, settingsEnter); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("prompt", gocui.KeyEnter, gocui.ModNone, enterClose); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -218,6 +257,7 @@ func layout(g *gocui.Gui) error {
 	viewLogs(g, maxX, maxY)
 	viewStatus(g, maxX, maxY)
 	viewCommands(g, maxX, maxY)
+	viewPrompt(g, maxX, maxY)
 	return nil
 }
 

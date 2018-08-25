@@ -97,3 +97,17 @@ func viewCommands(g *gocui.Gui, maxX int, maxY int) error {
 	}
 	return nil
 }
+// View: Prompt
+func viewPrompt(g *gocui.Gui, maxX int, maxY int) error {
+
+	if v, err := g.SetView("prompt", (maxX/2)-10, (maxY/2), (maxX/2)+10, (maxY/2)+2); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Editable = true
+		v.Wrap = false
+		v.Frame = true
+		g.SetViewOnBottom("prompt")
+	}
+	return nil
+}
