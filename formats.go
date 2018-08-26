@@ -1,5 +1,10 @@
 package main
 
+import (
+	"encoding/json"
+	"regexp"
+)
+
 var format = `[
   {
     "title":"Osx system log",
@@ -36,3 +41,27 @@ var format = `[
     ]
   }
 ]`
+
+type Formats []struct {
+	Title     string  `json:"title"`
+	Multiline bool    `json:"multiline"`
+	Regex     []Regex `json:"regex"`
+}
+
+type Regex struct {
+	Name          string `json:"name"`
+	Regex         string `json:"regex"`
+	RegexCompiled *regexp.Regexp
+	Timestamp     string `json:"timestamp"`
+}
+
+func readFormats() {
+	e := json.Unmarshal([]byte(format), &formats)
+	checkErr(e)
+	for i, format := range formats {
+		for ii, regex := range format.Regex {
+			r, _ := regexp.Compile(regex.Regex)
+			formats[i].Regex[ii].RegexCompiled = r
+		}
+	}
+}
