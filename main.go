@@ -12,6 +12,7 @@ import (
 
 	"github.com/jroimartin/gocui"
 	"go.uber.org/atomic"
+	"fmt"
 )
 
 var formats Formats
@@ -207,14 +208,47 @@ func settingsEnter(g *gocui.Gui, v *gocui.View) error {
 	view, err := g.View("prompt")
 	checkErr(err)
 	view.Clear()
-	view.SetCursor(0,0)
+	view.SetCursor(0, 0)
 	return nil
 }
+
+var settings = ""
+
 func enterClose(g *gocui.Gui, v *gocui.View) error {
 	g.SetViewOnBottom("prompt")
 	g.SetCurrentView("settings")
+
+	settings, err := g.View("settings")
+	checkErr(err)
+	_, settingsY := settings.Cursor()
+
+	switch settingsY {
+	case 0:
+		storeSettings("username", v.Buffer())
+	case 1:
+		storeSettings("password", v.Buffer())
+	case 2:
+		storeSettings("openshift", v.Buffer())
+	case 3:
+		storeSettings("jenkins", v.Buffer())
+	case 4:
+		storeSettings("bitbucket", v.Buffer())
+	case 5:
+		storeSettings("jira", v.Buffer())
+	default:
+	}
+
 	//buffer := v.Buffer()
 	//fmt.Print(buffer)
+	settings.Clear()
+	v.SetCursor(0,0)
+
+	fmt.Fprintln(settings, "Username       ", loadSettings("username"))
+	fmt.Fprintln(settings, "Password       ", "********")
+	fmt.Fprintln(settings, "Openshift url  ", loadSettings("openshift"))
+	fmt.Fprintln(settings, "Jenkins url    ", loadSettings("jenkins"))
+	fmt.Fprintln(settings, "Bitbucket url  ", loadSettings("bitbucket"))
+	fmt.Fprintln(settings, "Jira url       ", loadSettings("jira"))
 	return nil
 }
 

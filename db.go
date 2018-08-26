@@ -17,14 +17,20 @@ import (
 
 var db *sql.DB
 var dbStatement = `
-create table IF NOT EXISTS log (
+CREATE TABLE IF NOT EXISTS log (
   id  INTEGER PRIMARY KEY,
   time  INTEGER,
   system TEXT, 
   level TEXT,
   body  TEXT
 );
+
 CREATE INDEX IF NOT EXISTS index_timestamp ON log(time);
+
+CREATE TABLE IF NOT EXISTS settings(
+	key TEXT PRIMARY KEY ,
+	value TEXT
+);
 `
 
 var prev []LogLine
@@ -90,7 +96,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	now := time.Now()
 	var q = ""
 	if offset > 0 && len(prev) >= offset+1 {
-		q = fmt.Sprintf("select id, time, system, level, body from log where (time,id) <= (%d,%d) and "+query+
+		q = fmt.Sprintf("select id, time, system, level, body from log where (time,id) <= (%d,%d) and " + query+
 			" order by time desc, id desc limit "+
 			strconv.Itoa(limit), prev[len(prev)-offset-1].Time, prev[len(prev)-offset-1].Id)
 		bottom.Store(false)
@@ -129,6 +135,31 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	}
 	prev = ret
 	return ret, time.Now().Sub(now)
+}
+
+func storeSettings(key, value string) {
+	tx, err := db.Begin()
+	checkErr(err)
+	stmt, err := tx.Prepare("insert or replace into settings(key, value) values(?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	defer tx.Commit()
+	stmt.Exec(key, strings.TrimSpace(value))
+}
+
+func loadSettings(key string) string {
+	query, err := db.Query("SELECT VALUE FROM settings WHERE key = ?", key)
+	checkErr(err)
+	if query.Next() {
+		value := ""
+		err = query.Scan(&value)
+		checkErr(err)
+		defer query.Close()
+		return value
+	}
+	return ""
 }
 
 //CREATE VIRTUAL TABLE log_idx USING fts5(level, body, content='log', content_rowid='id');
