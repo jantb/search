@@ -5,6 +5,7 @@ import (
 	"regexp"
 )
 
+//2019-04-24T14:00:31.246+02:00 INFO Skal lagre fil til fillager for behandlingsId 1100004BF. UUID: c6a65947-f671-49f7-8986-7ca6f81d3574
 var format = `[
   {
     "title":"Osx system log",

@@ -22,8 +22,10 @@ func main() {
 	gui = g
 	defer g.Close()
 	insertChan := make(chan string, 10000)
+	insertChanJson := make(chan map[string]interface{}, 10000)
 	go insertIntoStore(insertChan)
-	go readFromPipe(insertChan)
+	go insertIntoStoreJson(insertChanJson)
+	go readFromPipe(insertChan, insertChanJson)
 
 	g.Cursor = true
 
