@@ -81,13 +81,21 @@ func insertLoglinesToStore(logLines []LogLine) {
 
 func search(query string, limit int, offset int) (ret []LogLine, t time.Duration) {
 	tokens := strings.Split(strings.TrimSpace(query), " ")
-	query = "body like '%%" + tokens[0] + "%%' "
+
+	if strings.HasPrefix(tokens[0], "level=") {
+		query = "level like '" + strings.Split(tokens[0], "=")[1] + "' "
+	} else {
+		query = "body like '%%" + tokens[0] + "%%' "
+	}
+
 	if len(tokens[0]) > 0 && tokens[0][0] == '!' {
 		query = "body not like '%%" + tokens[0][1:] + "%%' "
 	}
 
 	for _, value := range tokens[1:] {
-		if len(value) > 0 && value[0] == '!' {
+		if strings.HasPrefix(value, "level=") {
+			query += " and level like '" + strings.Split(value, "=")[1] + "' "
+		} else if len(value) > 0 && value[0] == '!' {
 			query += "and body not like '%%" + value[1:] + "%%' "
 		} else {
 			query += "and body like '%%" + value + "%%' "
@@ -96,7 +104,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	now := time.Now()
 	var q = ""
 	if offset > 0 && len(prev) >= offset+1 {
-		q = fmt.Sprintf("select id, time, system, level, body from log where (time,id) <= (%d,%d) and " + query+
+		q = fmt.Sprintf("select id, time, system, level, body from log where (time,id) <= (%d,%d) and "+query+
 			" order by time desc, id desc limit "+
 			strconv.Itoa(limit), prev[len(prev)-offset-1].Time, prev[len(prev)-offset-1].Id)
 		bottom.Store(false)
@@ -111,6 +119,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	} else {
 		return prev, time.Now().Sub(now)
 	}
+
 	rows, err := db.Query(q)
 
 	if err != nil {
