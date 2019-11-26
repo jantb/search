@@ -36,6 +36,7 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 	}
 	return LogLine{Body: line}, false
 }
+
 func parseLineJson(line map[string]interface{}) ([]LogLine, bool) {
 	var logLines []LogLine
 
@@ -65,6 +66,7 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 	}
 	return date
 }
+
 func parseTimestampJson(timestamp string) time.Time {
 	date, e := time.ParseInLocation("2006-01-02T15:04:05.999-07:00", strings.Replace(timestamp, ",", ".", -1), time.Local)
 	checkErr(e)
@@ -73,6 +75,7 @@ func parseTimestampJson(timestamp string) time.Time {
 	}
 	return date
 }
+
 func insertIntoStore(insertChan chan string) {
 	for {
 		length := len(insertChan)
@@ -98,6 +101,7 @@ func insertIntoStore(insertChan chan string) {
 		}
 	}
 }
+
 func insertIntoStoreJson(insertChan chan map[string]interface{}) {
 	for {
 		length := len(insertChan)

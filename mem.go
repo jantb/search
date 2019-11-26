@@ -69,10 +69,6 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 			break
 		}
 	}
-	//fmt.Print(offsetLine)
-	//for _, value := range prevs {
-	//
-	//}
 
 	ret = make([]LogLine, len(matches))
 	copy(ret, matches)
@@ -80,17 +76,3 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	prevs = ret
 	return ret, time.Now().Sub(now)
 }
-
-//CREATE VIRTUAL TABLE log_idx USING fts5(level, body, content='log', content_rowid='id');
-//
-//-- Triggers to keep the FTS index up to date.
-//CREATE TRIGGER log_ai AFTER INSERT ON log BEGIN
-//INSERT INTO log_idx(rowid, level, body) VALUES (new.id, new.level, new.body);
-//END;
-//CREATE TRIGGER log_ad AFTER DELETE ON log BEGIN
-//INSERT INTO log_idx(fts_idx, rowid, level, body) VALUES('delete', old.id, old.level, old.body);
-//END;
-//CREATE TRIGGER log_au AFTER UPDATE ON log BEGIN
-//INSERT INTO log_idx(fts_idx, rowid, level, body) VALUES('delete', old.id, old.level, old.body);
-//INSERT INTO log_idx(rowid, level, body) VALUES (new.id, new.level, new.body);
-//END;

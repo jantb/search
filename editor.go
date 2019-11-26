@@ -111,7 +111,7 @@ func renderSearch(v *gocui.View, offset int) {
 				case "DEBUG":
 					levelFunc = printWhite
 				}
-				line := fmt.Sprintf("%s %s %s %s\n", printBlue(value.getTime().Format("2006-01-02T15:04:05")), printCyan(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
+				line := fmt.Sprintf("%s %s %s %s\n", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printBlue(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
 				i := 26
 				if len(line) > x+i {
 					fmt.Fprintln(logs, line[:x+i])
@@ -143,7 +143,6 @@ func renderSearch(v *gocui.View, offset int) {
 				logs.SetOrigin(0, len(logs.BufferLines())-sy)
 				fmt.Fprintf(status, "┌─%s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), l[len(l)-1].Id)
 			} else {
-
 				fmt.Fprintf(status, "┌─%s", t)
 			}
 			cx, _ := v.Cursor()
