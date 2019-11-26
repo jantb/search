@@ -39,12 +39,15 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 
 func parseLineJson(line map[string]interface{}) ([]LogLine, bool) {
 	var logLines []LogLine
-
+	body := cast(line, "message")
+	if len(cast(line, "stack_trace")) > 0 {
+		body = cast(line, "message") + "\n" + cast(line, "stack_trace")
+	}
 	l := LogLine{
 		Time:   toMillis(parseTimestampJson(cast(line, "@timestamp"))),
-		System: cast(line, "consumerId"),
+		System: cast(line, "HOSTNAME"),
 		Level:  cast(line, "level"),
-		Body:   cast(line, "message") + cast(line, "stack_trace"),
+		Body:   body,
 	}
 	logLines = append(logLines, l)
 	return logLines, true

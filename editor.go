@@ -111,7 +111,7 @@ func renderSearch(v *gocui.View, offset int) {
 				case "DEBUG":
 					levelFunc = printWhite
 				}
-				line := fmt.Sprintf("%s %s %s %s\n", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printBlue(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
+				line := fmt.Sprintf("%s %s %s %s\n", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printYellow(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
 				i := 26
 				if len(line) > x+i {
 					fmt.Fprintln(logs, line[:x+i])
