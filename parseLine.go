@@ -11,7 +11,7 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 			match := regex.RegexCompiled.Match([]byte(line))
 			if match {
 				n1 := regex.RegexCompiled.SubexpNames()
-				r2 := regex.RegexCompiled.FindAllStringSubmatch(string(line), -1)[0]
+				r2 := regex.RegexCompiled.FindAllStringSubmatch(line, -1)[0]
 				md := map[string]string{}
 				for i, n := range r2 {
 					md[n1[i]] = n

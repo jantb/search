@@ -49,19 +49,27 @@ func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		return err
 	}
-	podCommandKeybindings(g)
-	settingsKeybindings(g)
+	err := podCommandKeybindings(g)
+	checkErr(err)
+	err = settingsKeybindings(g)
+	checkErr(err)
 	return nil
 }
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	viewPodCommand(g, maxX, maxY)
-	viewSettings(g, maxX, maxY)
-	viewLogs(g, maxX, maxY)
-	viewStatus(g, maxX, maxY)
-	viewCommands(g, maxX, maxY)
-	viewPrompt(g, maxX, maxY)
+	err := viewPodCommand(g, maxX, maxY)
+	checkErr(err)
+	err = viewSettings(g, maxX, maxY)
+	checkErr(err)
+	err = viewLogs(g, maxX, maxY)
+	checkErr(err)
+	err = viewStatus(g, maxX, maxY)
+	checkErr(err)
+	err = viewCommands(g, maxX, maxY)
+	checkErr(err)
+	err = viewPrompt(g, maxX, maxY)
+	checkErr(err)
 	return nil
 }
 

@@ -42,7 +42,7 @@ func readFromPipe(insertChan chan string, insertChanJson chan map[string]interfa
 			break
 		}
 		var j map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &j); err != nil {
+		if err := json.Unmarshal(line, &j); err != nil {
 			insertChan <- string(line)
 		} else {
 			insertChanJson <- j

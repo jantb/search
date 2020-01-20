@@ -41,7 +41,6 @@ func initStore() {
 		log.Fatal(err)
 	}
 
-	//os.Remove(filepath.Join(usr.HomeDir, ".search.db"))
 	dbs, err := sql.Open("sqlite3", filepath.Join(usr.HomeDir, ".search.db"))
 	db = dbs
 	checkErr(err)

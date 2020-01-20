@@ -13,14 +13,18 @@ func podCommandKeybindings(g *gocui.Gui) error {
 }
 
 func activatePodCommands(g *gocui.Gui, v *gocui.View) error {
-	g.SetViewOnTop("podCommand")
-	g.SetCurrentView("podCommand")
+	_, err := g.SetViewOnTop("podCommand")
+	checkErr(err)
+	_, err = g.SetCurrentView("podCommand")
+	checkErr(err)
 
 	return nil
 }
 func deactivatePodCommands(g *gocui.Gui, v *gocui.View) error {
-	g.SetViewOnBottom("podCommand")
-	g.SetCurrentView("commands")
+	_, err := g.SetViewOnBottom("podCommand")
+	checkErr(err)
+	_, err = g.SetCurrentView("commands")
+	checkErr(err)
 
 	return nil
 }
