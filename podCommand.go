@@ -15,10 +15,10 @@ func podCommandKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlS, gocui.ModNone, deactivateSettings); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("podCommand", gocui.KeyArrowDown, gocui.ModNone, podCommandsUp); err != nil {
+	if err := g.SetKeybinding("podCommand", gocui.KeyArrowDown, gocui.ModNone, podCommandsDown); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("podCommand", gocui.KeyArrowUp, gocui.ModNone, podCommandsDown); err != nil {
+	if err := g.SetKeybinding("podCommand", gocui.KeyArrowUp, gocui.ModNone, podCommandsUp); err != nil {
 		return err
 	}
 	if err := g.SetKeybinding("podCommand", gocui.KeyEnter, gocui.ModNone, podCommandsEnter); err != nil {
@@ -48,21 +48,31 @@ func deactivatePodCommands(g *gocui.Gui, v *gocui.View) error {
 
 func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
 	x, y := v.Cursor()
-	v.SetCursor(x, y-1)
 	view, err := g.View("podCommand")
 	checkErr(err)
-	view.SetOrigin(0, -podCommandY)
+	_, maxY := g.Size()
 	podCommandY++
+	if y+2 > maxY {
+		view.SetOrigin(0, podCommandY-maxY+1)
+		return nil
+	}
+	v.SetCursor(x, y+1)
 	return nil
 }
 
 func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 	x, y := v.Cursor()
-	v.SetCursor(x, y+1)
 	view, err := g.View("podCommand")
 	checkErr(err)
-	view.SetOrigin(0, -podCommandY)
 	podCommandY--
+	if y-1 < 0 {
+		view.SetOrigin(0, podCommandY)
+		if podCommandY < 0 {
+			podCommandY = 0
+		}
+		return nil
+	}
+	v.SetCursor(x, y-1)
 	return nil
 }
 
