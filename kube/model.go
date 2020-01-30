@@ -2,7 +2,7 @@ package kube
 
 import "time"
 
-type GetPods struct {
+type Pods struct {
 	APIVersion string   `json:"apiVersion"`
 	Items      []Items  `json:"items"`
 	Kind       string   `json:"kind"`

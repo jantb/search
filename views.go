@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/jantb/search/kube"
 	"github.com/jroimartin/gocui"
-	"os/exec"
 )
 
 // View: Logs
@@ -36,14 +34,8 @@ func viewPodCommand(g *gocui.Gui, maxX int, maxY int) error {
 		v.Frame = false
 		v.Editable = false
 
-		fmt.Fprintln(v, "Pods")
-		output, err := exec.Command("kubectl", "get", "pods", "-o", "json").CombinedOutput()
-		checkErr(err)
-
-		var getPods = kube.GetPods{}
-		err = json.Unmarshal(output, &getPods)
-		checkErr(err)
-		for _, item := range getPods.Items {
+		pods := kube.GetPods()
+		for _, item := range pods.Items {
 			fmt.Fprintln(v, item.Metadata.Name)
 		}
 
