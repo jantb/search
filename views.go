@@ -1,8 +1,11 @@
 package main
 
 import (
-	"github.com/jroimartin/gocui"
+	"encoding/json"
 	"fmt"
+	"github.com/jantb/search/kube"
+	"github.com/jroimartin/gocui"
+	"os/exec"
 )
 
 // View: Logs
@@ -33,12 +36,22 @@ func viewPodCommand(g *gocui.Gui, maxX int, maxY int) error {
 		v.Frame = false
 		v.Editable = false
 
-		fmt.Fprintln(v, "List pod versions")
-		fmt.Fprintln(v, "Item 2")
-		v.SetCursor(0,0)
+		fmt.Fprintln(v, "Pods")
+		output, err := exec.Command("kubectl", "get", "pods", "-o", "json").CombinedOutput()
+		checkErr(err)
+
+		var getPods = kube.GetPods{}
+		err = json.Unmarshal(output, &getPods)
+		checkErr(err)
+		for _, item := range getPods.Items {
+			fmt.Fprintln(v, item.Metadata.Name)
+		}
+
+		v.SetCursor(0, 0)
 	}
 	return nil
 }
+
 // View: Settings
 func viewSettings(g *gocui.Gui, maxX int, maxY int) error {
 	if v, err := g.SetView("settings", 0, 0, 120, 7); err != nil {
@@ -59,7 +72,7 @@ func viewSettings(g *gocui.Gui, maxX int, maxY int) error {
 		fmt.Fprintln(v, "Jenkins url    ", loadSettings("jenkins"))
 		fmt.Fprintln(v, "Bitbucket url  ", loadSettings("bitbucket"))
 		fmt.Fprintln(v, "Jira url       ", loadSettings("jira"))
-		v.SetCursor(0,0)
+		v.SetCursor(0, 0)
 	}
 	return nil
 }
@@ -97,10 +110,11 @@ func viewCommands(g *gocui.Gui, maxX int, maxY int) error {
 	}
 	return nil
 }
+
 // View: Prompt
 func viewPrompt(g *gocui.Gui, maxX int, maxY int) error {
 
-	if v, err := g.SetView("prompt", (maxX/2)-100, (maxY/2), (maxX/2)+100, (maxY/2)+2); err != nil {
+	if v, err := g.SetView("prompt", (maxX/2)-100, (maxY / 2), (maxX/2)+100, (maxY/2)+2); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}

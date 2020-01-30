@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/jroimartin/gocui"
 	"go.uber.org/atomic"
 	"log"
+	"os"
 )
 
 var formats Formats
@@ -16,9 +18,7 @@ func main() {
 	initStore()
 
 	g, err := gocui.NewGui(gocui.Output256)
-	if err != nil {
-		log.Panicln(err)
-	}
+	checkErr(err)
 	gui = g
 	defer g.Close()
 	insertChan := make(chan string, 10000)
@@ -74,7 +74,10 @@ func layout(g *gocui.Gui) error {
 }
 
 func checkErr(err error) {
-	if err != nil {
-		log.Fatal(err)
+	if err == nil {
+		return
 	}
+
+	fmt.Printf("\x1b[31;1m%s\x1b[0m\n", fmt.Sprintf("error: %s", err))
+	os.Exit(1)
 }
