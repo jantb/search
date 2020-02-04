@@ -112,14 +112,16 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 
 	if ch != 0 && mod == 0 {
 		podSearch += string(ch)
-		selectedPods = selectedPods[:0]
-		for _, p := range pods.Items {
-			if strings.HasPrefix(p.Metadata.Name, podSearch) {
-				selectedPods = append(selectedPods, p)
-			}
-		}
 		v.SetCursor(x+1, y)
 	}
+
+	selectedPods = nil
+	for _, p := range pods.Items {
+		if strings.HasPrefix(p.Metadata.Name, podSearch) {
+			selectedPods = append(selectedPods, p)
+		}
+	}
+
 	for _, item := range selectedPods {
 		fmt.Fprintln(v, item.Metadata.Name)
 	}
