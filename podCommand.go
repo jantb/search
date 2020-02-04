@@ -63,6 +63,9 @@ func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
 	view, err := g.View("podCommand")
 	checkErr(err)
 	_, maxY := g.Size()
+	if len(selectedPods)-2 < podCommandY {
+		return nil
+	}
 	podCommandY++
 	if y+2 > maxY {
 		view.SetOrigin(0, podCommandY-maxY+1)
@@ -89,7 +92,12 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 }
 
 func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
-
+	insertChanJson := make(chan map[string]interface{}, 10000)
+	go func(insertChanJson chan map[string]interface{}, podName string) {
+		kube.GetPodLogs(podName, insertChanJson)
+	}(insertChanJson, selectedPods[podCommandY].Metadata.Name)
+	go insertIntoStoreJson(insertChanJson)
+	deactivatePodCommands(g, v)
 	return nil
 }
 
