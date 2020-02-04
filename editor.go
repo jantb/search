@@ -124,7 +124,7 @@ func renderSearch(v *gocui.View, offset int) {
 				for _, line := range lines {
 					for _, value := range split([]rune(strings.TrimSpace(line)), x-3) {
 						for i := 0; i < 4; i++ {
-							fmt.Fprint(logs, " ")
+							//fmt.Fprint(logs, " ") // contunuation
 						}
 						fmt.Fprintln(logs, string(value))
 					}
