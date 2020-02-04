@@ -1,8 +1,16 @@
 package main
 
-import "github.com/jroimartin/gocui"
+import (
+	"fmt"
+	"github.com/jantb/search/kube"
+	"github.com/jroimartin/gocui"
+	"strings"
+)
 
 var podCommandY = 0
+var podSearch = ""
+var pods = kube.Pods{}
+var selectedPods []kube.Items
 
 func podCommandKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("commands", gocui.KeyCtrlP, gocui.ModNone, activatePodCommands); err != nil {
@@ -11,7 +19,6 @@ func podCommandKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlP, gocui.ModNone, deactivatePodCommands); err != nil {
 		return err
 	}
-
 	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlS, gocui.ModNone, deactivateSettings); err != nil {
 		return err
 	}
@@ -31,9 +38,14 @@ func podCommandKeybindings(g *gocui.Gui) error {
 func activatePodCommands(g *gocui.Gui, v *gocui.View) error {
 	_, err := g.SetViewOnTop("podCommand")
 	checkErr(err)
-	_, err = g.SetCurrentView("podCommand")
+	v, err = g.SetCurrentView("podCommand")
 	checkErr(err)
 	podCommandY = 0
+	pods = kube.GetPods()
+	selectedPods = pods.Items
+	for _, item := range selectedPods {
+		fmt.Fprintln(v, item.Metadata.Name)
+	}
 	return nil
 }
 
@@ -79,4 +91,36 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 
 	return nil
+}
+
+func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	v, e := gui.View("podCommand")
+	checkErr(e)
+	x, y := v.Cursor()
+	v.Clear()
+	switch key {
+	case gocui.KeyBackspace, gocui.KeyBackspace2:
+		if len(podSearch) > 0 {
+			podSearch = podSearch[:len(podSearch)-1]
+			v.SetCursor(x-1, y)
+		}
+	case gocui.KeyDelete:
+
+	case gocui.KeyEnter:
+		return
+	}
+
+	if ch != 0 && mod == 0 {
+		podSearch += string(ch)
+		selectedPods = selectedPods[:0]
+		for _, p := range pods.Items {
+			if strings.HasPrefix(p.Metadata.Name, podSearch) {
+				selectedPods = append(selectedPods, p)
+			}
+		}
+		v.SetCursor(x+1, y)
+	}
+	for _, item := range selectedPods {
+		fmt.Fprintln(v, item.Metadata.Name)
+	}
 }

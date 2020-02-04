@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/jantb/search/kube"
 	"github.com/jroimartin/gocui"
 )
 
@@ -32,13 +31,8 @@ func viewPodCommand(g *gocui.Gui, maxX int, maxY int) error {
 		v.Autoscroll = false
 		v.Wrap = false
 		v.Frame = false
-		v.Editable = false
-
-		pods := kube.GetPods()
-		for _, item := range pods.Items {
-			fmt.Fprintln(v, item.Metadata.Name)
-		}
-
+		v.Editable = true
+		v.Editor = gocui.EditorFunc(editorPodCommand)
 		v.SetCursor(0, 0)
 	}
 	return nil
