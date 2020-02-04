@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -26,6 +27,27 @@ func GetPodLogs(podName string, insertChanJson chan map[string]interface{}) {
 		if err := json.Unmarshal([]byte(line), &j); err != nil {
 		} else {
 			insertChanJson <- j
+		}
+	}
+}
+
+func GetPodLogsStream(podName string, insertChanJson chan map[string]interface{}) {
+	command := exec.Command("kubectl", "logs", "-f", "--since=200h", podName)
+	pipe, err := command.StdoutPipe()
+	command.Start()
+	checkErr(err)
+	reader := bufio.NewReader(pipe)
+
+	var line string
+	for {
+		line, err = reader.ReadString('\n')
+		var j map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &j); err != nil {
+		} else {
+			insertChanJson <- j
+		}
+		if err != nil {
+			break
 		}
 	}
 }

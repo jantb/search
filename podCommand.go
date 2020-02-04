@@ -94,7 +94,7 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 	insertChanJson := make(chan map[string]interface{}, 10000)
 	go func(insertChanJson chan map[string]interface{}, podName string) {
-		kube.GetPodLogs(podName, insertChanJson)
+		kube.GetPodLogsStream(podName, insertChanJson)
 	}(insertChanJson, selectedPods[podCommandY].Metadata.Name)
 	go insertIntoStoreJson(insertChanJson)
 	deactivatePodCommands(g, v)
