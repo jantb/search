@@ -75,6 +75,8 @@ func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
 
 	if len(selectedPods) > y {
 		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y+1)
+	} else {
+		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), len(selectedPods))
 	}
 	return nil
 }
@@ -93,6 +95,8 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 	}
 	if len(selectedPods) > y {
 		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y-1)
+	} else {
+		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), len(selectedPods))
 	}
 	return nil
 }
@@ -139,6 +143,8 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 	}
 	if len(selectedPods) > y {
 		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y)
+	} else {
+		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), len(selectedPods))
 	}
 
 	printPods(v)
