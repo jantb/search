@@ -156,7 +156,7 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 func printPods(v *gocui.View) {
 	for _, item := range selectedPods {
 		duration := time.Now().Sub(item.Metadata.CreationTimestamp)
-		fmt.Fprintf(v, "%s %s\n", item.Metadata.Name, fmtDuration(duration))
+		fmt.Fprintf(v, "%-40s %-40s\n", item.Metadata.Name, fmtDuration(duration))
 	}
 }
 func fmtDuration(d time.Duration) string {
