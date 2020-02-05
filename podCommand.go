@@ -74,7 +74,7 @@ func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
 	}
 
 	if len(selectedPods) > y {
-		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y+1)
+		v.SetCursor(strings.Index(selectedPods[y+1].Metadata.Name, podSearch)+len(podSearch), y+1)
 	} else {
 		v.SetCursor(strings.Index(selectedPods[len(selectedPods)].Metadata.Name, podSearch)+len(podSearch), len(selectedPods)-1)
 		podCommandY = len(selectedPods) - 1
@@ -95,7 +95,7 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 	if len(selectedPods) > y {
-		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y-1)
+		v.SetCursor(strings.Index(selectedPods[y-1].Metadata.Name, podSearch)+len(podSearch), y-1)
 	} else {
 		v.SetCursor(strings.Index(selectedPods[len(selectedPods)].Metadata.Name, podSearch)+len(podSearch), len(selectedPods)-1)
 		podCommandY = len(selectedPods) - 1
