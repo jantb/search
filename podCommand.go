@@ -37,11 +37,13 @@ func podCommandKeybindings(g *gocui.Gui) error {
 }
 
 func activatePodCommands(g *gocui.Gui, v *gocui.View) error {
+	podSearch = ""
 	_, err := g.SetViewOnTop("podCommand")
 	checkErr(err)
 	v, err = g.SetCurrentView("podCommand")
 	checkErr(err)
 	podCommandY = 0
+	v.SetCursor(0, 0)
 	pods = kube.GetPods()
 	selectedPods = pods.Items
 	printPods(v)
@@ -96,7 +98,6 @@ func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 		kube.GetPodLogsStream(podName, insertChanJson)
 	}(insertChanJson, selectedPods[podCommandY].Metadata.Name)
 	go insertIntoStoreJsonSystem(insertChanJson, selectedPods[podCommandY].Metadata.Name)
-	podCommandY = 0
 	return nil
 }
 
