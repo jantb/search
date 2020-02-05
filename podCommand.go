@@ -72,7 +72,10 @@ func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
 		view.SetOrigin(0, podCommandY-maxY+1)
 		return nil
 	}
-	v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y+1)
+
+	if len(selectedPods) > y {
+		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y+1)
+	}
 	return nil
 }
 
@@ -88,16 +91,23 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 		}
 		return nil
 	}
-	v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y-1)
+	if len(selectedPods) > y {
+		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y-1)
+	}
 	return nil
 }
 
 func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 	insertChanJson := make(chan map[string]interface{}, 10000)
-	go func(insertChanJson chan map[string]interface{}, podName string) {
-		kube.GetPodLogsStream(podName, insertChanJson)
-	}(insertChanJson, selectedPods[podCommandY].Metadata.Name)
-	go insertIntoStoreJsonSystem(insertChanJson, selectedPods[podCommandY].Metadata.Name)
+	_, y := v.Cursor()
+	if len(selectedPods) > y {
+
+		go func(insertChanJson chan map[string]interface{}, podName string) {
+			kube.GetPodLogsStream(podName, insertChanJson)
+		}(insertChanJson, selectedPods[podCommandY].Metadata.Name)
+		go insertIntoStoreJsonSystem(insertChanJson, selectedPods[podCommandY].Metadata.Name)
+	}
+
 	return nil
 }
 
