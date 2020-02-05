@@ -111,20 +111,15 @@ func renderSearch(v *gocui.View, offset int) {
 				case "DEBUG":
 					levelFunc = printWhite
 				}
-				line := fmt.Sprintf("%s %s %s %s\n", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printYellow(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
-				i := 26
-				if len(line) > x+i {
-					fmt.Fprintln(logs, line[:x+i])
-					line = line[x+i:]
-				} else {
-					fmt.Fprint(logs, line)
-					line = line[:0]
-				}
+				line := fmt.Sprintf("%s %s %s %s", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printYellow(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
 				lines := strings.Split(line, "\n")
-				for _, line := range lines {
-					for _, value := range split([]rune(strings.TrimSpace(line)), x-3) {
+				for _, value := range split([]rune(strings.TrimSpace(lines[0])), x-1) {
+					fmt.Fprintln(logs, string(value))
+				}
+				for _, line := range lines[1:] {
+					for _, value := range split([]rune(strings.TrimSpace(line)), x-4) {
 						for i := 0; i < 4; i++ {
-							//fmt.Fprint(logs, " ") // contunuation
+							fmt.Fprint(logs, " ") // continuation
 						}
 						fmt.Fprintln(logs, string(value))
 					}
