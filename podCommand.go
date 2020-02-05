@@ -125,7 +125,7 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 
 	selectedPods = nil
 	for _, p := range pods.Items {
-		if strings.HasPrefix(p.Metadata.Name, podSearch) {
+		if strings.Contains(p.Metadata.Name, podSearch) {
 			selectedPods = append(selectedPods, p)
 		}
 	}
