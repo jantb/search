@@ -58,7 +58,7 @@ func deactivatePodCommands(g *gocui.Gui, v *gocui.View) error {
 }
 
 func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
-	x, y := v.Cursor()
+	_, y := v.Cursor()
 	view, err := g.View("podCommand")
 	checkErr(err)
 	_, maxY := g.Size()
@@ -70,12 +70,12 @@ func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
 		view.SetOrigin(0, podCommandY-maxY+1)
 		return nil
 	}
-	v.SetCursor(x, y+1)
+	v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y+1)
 	return nil
 }
 
 func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
-	x, y := v.Cursor()
+	_, y := v.Cursor()
 	view, err := g.View("podCommand")
 	checkErr(err)
 	podCommandY--
@@ -86,7 +86,7 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 		}
 		return nil
 	}
-	v.SetCursor(x, y-1)
+	v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y-1)
 	return nil
 }
 
@@ -97,20 +97,18 @@ func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 	}(insertChanJson, selectedPods[podCommandY].Metadata.Name)
 	go insertIntoStoreJsonSystem(insertChanJson, selectedPods[podCommandY].Metadata.Name)
 	podCommandY = 0
-	deactivatePodCommands(g, v)
 	return nil
 }
 
 func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	v, e := gui.View("podCommand")
 	checkErr(e)
-	x, y := v.Cursor()
+	_, y := v.Cursor()
 	v.Clear()
 	switch key {
 	case gocui.KeyBackspace, gocui.KeyBackspace2:
 		if len(podSearch) > 0 {
 			podSearch = podSearch[:len(podSearch)-1]
-			v.SetCursor(x-1, y)
 		}
 	case gocui.KeyDelete:
 
@@ -120,14 +118,16 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 
 	if ch != 0 && mod == 0 {
 		podSearch += string(ch)
-		v.SetCursor(x+1, y)
 	}
 
 	selectedPods = nil
 	for _, p := range pods.Items {
-		if strings.Contains(p.Metadata.Name, podSearch) {
+		if len(podSearch) == 0 || strings.Contains(p.Metadata.Name, podSearch) {
 			selectedPods = append(selectedPods, p)
 		}
+	}
+	if len(selectedPods) > y {
+		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y)
 	}
 
 	printPods(v)
@@ -135,6 +135,14 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 
 func printPods(v *gocui.View) {
 	for _, item := range selectedPods {
-		fmt.Fprintf(v, "%s %s\n", item.Metadata.Name, time.Now().Sub(item.Metadata.CreationTimestamp))
+		duration := time.Now().Sub(item.Metadata.CreationTimestamp)
+		fmt.Fprintf(v, "%s %s\n", item.Metadata.Name, fmtDuration(duration))
 	}
+}
+func fmtDuration(d time.Duration) string {
+	d = d.Round(time.Minute)
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	return fmt.Sprintf("%02d:%02d", h, m)
 }
