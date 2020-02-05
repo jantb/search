@@ -5,6 +5,7 @@ import (
 	"github.com/jantb/search/kube"
 	"github.com/jroimartin/gocui"
 	"strings"
+	"time"
 )
 
 var podCommandY = 0
@@ -43,9 +44,7 @@ func activatePodCommands(g *gocui.Gui, v *gocui.View) error {
 	podCommandY = 0
 	pods = kube.GetPods()
 	selectedPods = pods.Items
-	for _, item := range selectedPods {
-		fmt.Fprintln(v, item.Metadata.Name)
-	}
+	printPods(v)
 	return nil
 }
 
@@ -92,12 +91,11 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 }
 
 func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
-	initStore()
 	insertChanJson := make(chan map[string]interface{}, 10000)
 	go func(insertChanJson chan map[string]interface{}, podName string) {
 		kube.GetPodLogsStream(podName, insertChanJson)
 	}(insertChanJson, selectedPods[podCommandY].Metadata.Name)
-	go insertIntoStoreJson(insertChanJson)
+	go insertIntoStoreJsonSystem(insertChanJson, selectedPods[podCommandY].Metadata.Name)
 	podCommandY = 0
 	deactivatePodCommands(g, v)
 	return nil
@@ -132,7 +130,11 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 		}
 	}
 
+	printPods(v)
+}
+
+func printPods(v *gocui.View) {
 	for _, item := range selectedPods {
-		fmt.Fprintln(v, item.Metadata.Name)
+		fmt.Fprintf(v, "%s %s\n", item.Metadata.Name, time.Now().Sub(item.Metadata.CreationTimestamp))
 	}
 }
