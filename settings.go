@@ -11,6 +11,7 @@ func activateSettings(g *gocui.Gui, v *gocui.View) error {
 
 	return nil
 }
+
 func deactivateSettings(g *gocui.Gui, v *gocui.View) error {
 	g.SetViewOnBottom("settings")
 	g.SetCurrentView("commands")

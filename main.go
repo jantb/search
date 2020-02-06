@@ -45,6 +45,11 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
+func clean(g *gocui.Gui, v *gocui.View) error {
+	clearDb()
+	return nil
+}
+
 func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		return err
@@ -52,6 +57,9 @@ func keybindings(g *gocui.Gui) error {
 	err := podCommandKeybindings(g)
 	checkErr(err)
 	err = settingsKeybindings(g)
+	if err := g.SetKeybinding("", gocui.KeyCtrlL, gocui.ModNone, clean); err != nil {
+		return err
+	}
 	checkErr(err)
 	return nil
 }
