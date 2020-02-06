@@ -75,7 +75,7 @@ func podCommandsDown(g *gocui.Gui, v *gocui.View) error {
 
 	if len(selectedPods) > y {
 		v.SetCursor(strings.Index(selectedPods[y+1].Metadata.Name, podSearch)+len(podSearch), y+1)
-	} else {
+	} else if len(selectedPods) > 0 {
 		v.SetCursor(strings.Index(selectedPods[len(selectedPods)].Metadata.Name, podSearch)+len(podSearch), len(selectedPods)-1)
 		podCommandY = len(selectedPods) - 1
 	}
@@ -96,7 +96,7 @@ func podCommandsUp(g *gocui.Gui, v *gocui.View) error {
 	}
 	if len(selectedPods) > y {
 		v.SetCursor(strings.Index(selectedPods[y-1].Metadata.Name, podSearch)+len(podSearch), y-1)
-	} else {
+	} else if len(selectedPods) > 0 {
 		v.SetCursor(strings.Index(selectedPods[len(selectedPods)].Metadata.Name, podSearch)+len(podSearch), len(selectedPods)-1)
 		podCommandY = len(selectedPods) - 1
 	}
@@ -145,7 +145,7 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 	}
 	if len(selectedPods) > y {
 		v.SetCursor(strings.Index(selectedPods[y].Metadata.Name, podSearch)+len(podSearch), y)
-	} else {
+	} else if len(selectedPods) > 0 {
 		v.SetCursor(strings.Index(selectedPods[len(selectedPods)-1].Metadata.Name, podSearch)+len(podSearch), len(selectedPods)-1)
 		podCommandY = len(selectedPods) - 1
 	}
@@ -156,7 +156,7 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 func printPods(v *gocui.View) {
 	for _, item := range selectedPods {
 		duration := time.Now().Sub(item.Metadata.CreationTimestamp)
-		fmt.Fprintf(v, "%-40s %-40s\n", item.Metadata.Name, fmtDuration(duration))
+		fmt.Fprintf(v, "%-70s %-40s\n", item.Metadata.Name, fmtDuration(duration))
 	}
 }
 func fmtDuration(d time.Duration) string {
