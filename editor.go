@@ -113,7 +113,7 @@ func renderSearch(v *gocui.View, offset int) {
 				}
 				line := fmt.Sprintf("%s %s %s %s", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printYellow(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
 				lines := strings.Split(line, "\n")
-				for _, value := range split([]rune(strings.TrimSpace(lines[0])), len(lines[0])-len(Strip(lines[0]))+x) {
+				for _, value := range split([]rune(strings.TrimSpace(lines[0])), len(lines[0])-len(Strip(lines[0]))+x-1) {
 					fmt.Fprintln(logs, string(value))
 				}
 				for _, line := range lines[1:] {
