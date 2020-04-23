@@ -63,7 +63,9 @@ func cast(j map[string]interface{}, field string) string {
 func parseTimestamp(regex Regex, timestamp string) time.Time {
 	s := regex.Timestamp
 	date, e := time.ParseInLocation(s, strings.Replace(timestamp, ",", ".", -1), time.Local)
-	checkErr(e)
+	if e != nil {
+		date = time.Now().Add(-100 * time.Minute)
+	}
 	if date.Year() == 0 {
 		date = date.AddDate(time.Now().Year(), 0, 0)
 	}
@@ -72,7 +74,9 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 
 func parseTimestampJson(timestamp string) time.Time {
 	date, e := time.ParseInLocation("2006-01-02T15:04:05.999-07:00", strings.Replace(timestamp, ",", ".", -1), time.Local)
-	checkErr(e)
+	if e != nil {
+		date = time.Now().Add(-100 * time.Minute)
+	}
 	if date.Year() == 0 {
 		date = date.AddDate(time.Now().Year(), 0, 0)
 	}
