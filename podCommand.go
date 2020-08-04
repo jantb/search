@@ -156,7 +156,20 @@ func editorPodCommand(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier)
 func printPods(v *gocui.View) {
 	for _, item := range selectedPods {
 		duration := time.Now().Sub(item.Metadata.CreationTimestamp)
-		fmt.Fprintf(v, "%-70s %-40s\n", item.Metadata.Name, fmtDuration(duration))
+		restartcount := 0
+		reason := ""
+		finishedAt := ""
+		if len(item.Status.ContainerStatuses) > 0 {
+			containerStatuses := item.Status.ContainerStatuses[len(item.Status.ContainerStatuses)-1]
+			restartcount = containerStatuses.RestartCount
+			reason = containerStatuses.LastState.Terminated.Reason
+			finishedAt = containerStatuses.LastState.Terminated.FinishedAt.String()
+			if containerStatuses.LastState.Terminated.FinishedAt.IsZero() {
+				finishedAt = ""
+			}
+		}
+
+		fmt.Fprintf(v, "%-70s %-10s %5d %40s %s\n", item.Metadata.Name, fmtDuration(duration), restartcount, reason, finishedAt)
 	}
 }
 func fmtDuration(d time.Duration) string {
