@@ -21,7 +21,6 @@ func readFromPipe(insertChan chan string, insertChanJson chan map[string]interfa
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-
 		line, prefix, err := reader.ReadLine()
 		if err != nil && err == io.EOF {
 			break

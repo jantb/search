@@ -4,12 +4,15 @@ package main
 
 import (
 	"sort"
+	"strings"
+	"sync"
 	"time"
 )
 
 var store []LogLine
-var prevs []LogLine
+var o = 0
 var id int
+var lock = sync.Mutex{}
 
 func initStore() {
 
@@ -18,8 +21,21 @@ func initStore() {
 func cleanupStore() {
 
 }
+func clearDb() {
+
+}
+
+func storeSettings(key, value string) {
+
+}
+
+func loadSettings(key string) string {
+	return ""
+}
 
 func insertLoglinesToStore(logLines []LogLine) {
+	lock.Lock()
+	defer lock.Unlock()
 	for _, line := range logLines {
 		id++
 		line.Id = id
@@ -42,37 +58,41 @@ func insertSort(line LogLine) {
 
 func search(query string, limit int, offset int) (ret []LogLine, t time.Duration) {
 	now := time.Now()
+	query = strings.TrimSpace(query)
+
+	setOffset(offset)
+
 	if len(store) == 0 {
 		return store, time.Now().Sub(now)
 	}
-	//fmt.Print(store[0])
-	if len(prevs) == 0 {
-		lines := store[Max(0, len(store)-limit):]
-		prevs = make([]LogLine, len(lines))
-		copy(prevs, lines)
-		reverseLogline(prevs)
-	}
-	offsetLine := store[len(store)-1]
-	if offset >= 0 {
-		offsetLine = prevs[Min(len(prevs)-1-offset, 0)]
-	}
-	var matches []LogLine
+
 	for i := len(store) - 1; i >= 0; i-- {
 		line := store[i]
-		if line.Time > offsetLine.Time || line.Id > offsetLine.Id {
-			continue
+
+		if len(query) == 0 || strings.Contains(line.Level, strings.ToUpper(query)) || strings.Contains(line.Body, query) {
+			ret = append(ret, line)
 		}
-
-		matches = append(matches, line)
-
-		if len(matches) == limit {
+		if len(ret) == limit+o {
 			break
 		}
 	}
-
-	ret = make([]LogLine, len(matches))
-	copy(ret, matches)
+	if len(ret) > o {
+		ret = ret[o:]
+	}
 	reverseLogline(ret)
-	prevs = ret
+	bottom.Store(o == 0)
 	return ret, time.Now().Sub(now)
+}
+
+func setOffset(offset int) {
+	if o == 0 {
+		if offset > 0 {
+			o += offset
+		}
+	}
+	if o+offset < 0 {
+		o = 0
+	} else {
+		o += offset
+	}
 }
