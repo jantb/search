@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -57,7 +58,7 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 		renderSearch(v, -10)
 		return
 	case gocui.KeyEnter:
-		renderSearch(v, 0)
+		renderSearch(v, math.MinInt32)
 		return
 	}
 	if ch != 0 && mod == 0 {
