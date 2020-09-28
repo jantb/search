@@ -6,11 +6,16 @@ import (
 	"go.uber.org/atomic"
 	"log"
 	"os"
+	"time"
 )
 
 var formats Formats
 var gui *gocui.Gui
 var bottom atomic.Bool
+var insertLogLinesChan = make(chan []LogLine, 10000)
+var insertChanJson = make(chan map[string]interface{}, 10000)
+var insertChan = make(chan string, 10000)
+var bottomChan = make(chan bool, 10000)
 
 func main() {
 	bottom.Store(false)
@@ -21,12 +26,12 @@ func main() {
 	checkErr(err)
 	gui = g
 	defer g.Close()
-	insertChan := make(chan string, 10000)
-	insertChanJson := make(chan map[string]interface{}, 10000)
+
 	go insertIntoStore(insertChan)
+	go insertIntoStoreByChan(insertLogLinesChan)
 	go insertIntoStoreJson(insertChanJson)
 	go readFromPipe(insertChan, insertChanJson)
-
+	go bottomRefresh()
 	g.Cursor = true
 
 	g.SetManagerFunc(layout)
@@ -88,4 +93,25 @@ func checkErr(err error) {
 
 	fmt.Printf("\x1b[31;1m%s\x1b[0m\n", fmt.Sprintf("error: %s", err))
 	os.Exit(1)
+}
+
+func bottomRefresh() {
+	for {
+		select {
+		case <-bottomChan:
+			length := len(bottomChan)
+			if length >= 0 {
+				for i := 0; i < length; i++ {
+					<-bottomChan
+				}
+			}
+		case <-time.After(time.Second):
+
+		}
+		if bottom.Load() {
+			v, e := gui.View("commands")
+			checkErr(e)
+			renderSearch(v, 0)
+		}
+	}
 }

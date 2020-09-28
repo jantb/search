@@ -5,14 +5,12 @@ package main
 import (
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
 var store []LogLine
 var o = 0
 var id int
-var lock = sync.Mutex{}
 
 func initStore() {
 
@@ -33,9 +31,19 @@ func loadSettings(key string) string {
 	return ""
 }
 
+func getLength() int {
+	return len(store)
+}
+
+func insertIntoStoreByChan(insertChan chan []LogLine) {
+	for {
+		line := <-insertChan
+		insertLoglinesToStore(line)
+		bottomChan <- true
+	}
+}
+
 func insertLoglinesToStore(logLines []LogLine) {
-	lock.Lock()
-	defer lock.Unlock()
 	for _, line := range logLines {
 		id++
 		line.Id = id
@@ -59,6 +67,7 @@ func insertSort(line LogLine) {
 func search(query string, limit int, offset int) (ret []LogLine, t time.Duration) {
 	now := time.Now()
 	query = strings.TrimSpace(query)
+	tokens := strings.Split(strings.TrimSpace(query), " ")
 
 	setOffset(offset)
 
@@ -69,9 +78,42 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	for i := len(store) - 1; i >= 0; i-- {
 		line := store[i]
 
-		if len(query) == 0 || strings.Contains(line.Level, strings.ToUpper(query)) || strings.Contains(line.Body, query) {
+		skip := false
+		var restTokens []string
+		for _, token := range tokens {
+			if strings.HasPrefix(token, "level=") {
+				if line.Level != strings.ToUpper(strings.Split(token, "=")[1]) {
+					skip = true
+				}
+				continue
+			}
+
+			if strings.HasPrefix(token, "level!=") {
+				if line.Level == strings.ToUpper(strings.Split(token, "!=")[1]) {
+					skip = true
+				}
+				continue
+			}
+
+			if strings.HasPrefix(token, "!") {
+				if strings.Contains(line.Body, token[1:]) {
+					skip = true
+				}
+				continue
+			}
+			restTokens = append(restTokens, token)
+		}
+
+		if skip {
+			continue
+		}
+
+		join := strings.Join(restTokens, " ")
+
+		if len(query) == 0 || strings.Contains(line.Level, strings.ToUpper(join)) || strings.Contains(line.Body, join) {
 			ret = append(ret, line)
 		}
+
 		if len(ret) == limit+o {
 			break
 		}

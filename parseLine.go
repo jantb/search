@@ -96,15 +96,10 @@ func insertIntoStore(insertChan chan string) {
 				}
 				logLines = append(logLines, logLine)
 			}
-			insertLoglinesToStore(logLines)
+			insertLogLinesChan <- logLines
+			//insertLoglinesToStore(logLines)
 		} else {
 			time.Sleep(time.Second)
-		}
-
-		if bottom.Load() {
-			v, e := gui.View("commands")
-			checkErr(e)
-			renderSearch(v, 0)
 		}
 	}
 }
@@ -122,16 +117,11 @@ func insertIntoStoreJsonSystem(insertChan chan map[string]interface{}, system st
 				if !found {
 					continue
 				}
-				insertLoglinesToStore(logLines)
+				insertLogLinesChan <- logLines
+				//insertLoglinesToStore(logLines)
 			}
 		} else {
 			time.Sleep(time.Second)
-		}
-
-		if bottom.Load() {
-			v, e := gui.View("commands")
-			checkErr(e)
-			renderSearch(v, 0)
 		}
 	}
 }
@@ -146,16 +136,11 @@ func insertIntoStoreJson(insertChan chan map[string]interface{}) {
 				if !found {
 					continue
 				}
-				insertLoglinesToStore(logLines)
+				insertLogLinesChan <- logLines
+				//insertLoglinesToStore(logLines)
 			}
 		} else {
 			time.Sleep(time.Second)
-		}
-
-		if bottom.Load() {
-			v, e := gui.View("commands")
-			checkErr(e)
-			renderSearch(v, 0)
 		}
 	}
 }

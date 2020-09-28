@@ -63,6 +63,14 @@ func clearDb() {
 	}
 	defer tx.Commit()
 }
+
+func insertIntoStoreByChan(insertChan chan []LogLine) {
+	for {
+		line := <-insertChan
+		insertLoglinesToStore(line)
+	}
+}
+
 func insertLoglinesToStore(logLines []LogLine) {
 	tx, err := db.Begin()
 	checkErr(err)
