@@ -9,7 +9,7 @@ import (
 )
 
 var store []LogLine
-var o = 0
+var realOffset = 0
 var id int
 
 func initStore() {
@@ -114,27 +114,27 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 			ret = append(ret, line)
 		}
 
-		if len(ret) == limit+o {
+		if len(ret) == limit+realOffset {
 			break
 		}
 	}
-	if len(ret) > o {
-		ret = ret[o:]
+	if len(ret) > realOffset {
+		ret = ret[realOffset:]
 	}
 	reverseLogline(ret)
-	bottom.Store(o == 0)
+	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now)
 }
 
 func setOffset(offset int) {
-	if o == 0 {
+	if realOffset == 0 {
 		if offset > 0 {
-			o += offset
+			realOffset += offset
 		}
 	}
-	if o+offset < 0 {
-		o = 0
+	if realOffset+offset < 0 {
+		realOffset = 0
 	} else {
-		o += offset
+		realOffset += offset
 	}
 }
