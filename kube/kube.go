@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 func GetPods() Pods {
@@ -42,15 +43,17 @@ func GetPodLogsStream(podName string, insertChanJson chan map[string]interface{}
 	for {
 		line, err = reader.ReadString('\n')
 		if err != nil {
-			close(insertChanJson)
+			time.Sleep(60 * time.Second)
+			go func(insertChanJson chan map[string]interface{}, podName string) {
+				GetPodLogsStream(podName, insertChanJson)
+			}(insertChanJson, podName)
+			return
 		}
 		var j map[string]interface{}
 		if err := json.Unmarshal([]byte(line), &j); err != nil {
+			return
 		} else {
 			insertChanJson <- j
-		}
-		if err != nil {
-			break
 		}
 	}
 }

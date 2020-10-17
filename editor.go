@@ -137,7 +137,8 @@ func renderSearch(v *gocui.View, offset int) {
 			if bottom.Load() && len(l) > 0 {
 				lastMessageDuration := time.Now().Sub(l[len(l)-1].getTime())
 				logs.SetOrigin(0, len(logs.BufferLines())-sy)
-				fmt.Fprintf(status, "┌─%10s──Follow mode, last message: %s ago──total lines: %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), getLength())
+				mem, totalStop, g := memusage()
+				fmt.Fprintf(status, "┌─%10s──Follow mode, last message: %s ago──total lines: %d mem: %dmb gc: %s %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), getLength(), mem, totalStop, g)
 			} else {
 				fmt.Fprintf(status, "┌─%10s", t)
 			}

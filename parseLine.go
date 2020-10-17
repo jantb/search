@@ -112,24 +112,15 @@ func insertIntoStore(insertChan chan string) {
 }
 
 func insertIntoStoreJsonSystem(insertChan chan map[string]interface{}, system string) {
-	for {
-		length := len(insertChan)
-		if length > 0 {
-			for i := 0; i < length; i++ {
-				line := <-insertChan
-				logLines, found := parseLineJson(line)
-				for j := range logLines {
-					logLines[j].setSystem(system)
-				}
-				if !found {
-					continue
-				}
-				insertLogLinesChan <- logLines
-				//insertLoglinesToStore(logLines)
-			}
-		} else {
-			time.Sleep(time.Second)
+	for line := range insertChan {
+		logLines, found := parseLineJson(line)
+		for j := range logLines {
+			logLines[j].setSystem(system)
 		}
+		if !found {
+			continue
+		}
+		insertLogLinesChan <- logLines
 	}
 }
 
