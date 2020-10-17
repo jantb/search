@@ -1,14 +1,11 @@
-// +build mem
-
 package main
 
 import (
-	"sort"
 	"strings"
 	"time"
 )
 
-var store []LogLine
+var bst = Tree{}
 var realOffset = 0
 var id int
 
@@ -32,7 +29,7 @@ func loadSettings(key string) string {
 }
 
 func getLength() int {
-	return len(store)
+	return bst.size
 }
 
 func insertIntoStoreByChan(insertChan chan []LogLine) {
@@ -47,21 +44,8 @@ func insertLoglinesToStore(logLines []LogLine) {
 	for _, line := range logLines {
 		id++
 		line.Id = id
-		insertSort(line)
+		bst.Put(line)
 	}
-}
-
-func insertSort(line LogLine) {
-	index := sort.Search(len(store), func(i int) bool {
-		if store[i].Time == line.Time {
-			return store[i].Id > line.Id
-		}
-		return store[i].Time > line.Time
-	})
-	store = append(store, LogLine{})
-	copy(store[index+1:], store[index:])
-	line.Id = index + 1
-	store[index] = line
 }
 
 func search(query string, limit int, offset int) (ret []LogLine, t time.Duration) {
@@ -71,38 +55,14 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	setOffset(offset)
 
-	if len(store) == 0 {
-		return store, time.Now().Sub(now)
+	if getLength() == 0 {
+		return []LogLine{}, time.Now().Sub(now)
 	}
+	done := make(chan struct{})
+	ch := bst.Iterate(done)
 
-	for i := len(store) - 1; i >= 0; i-- {
-		line := store[i]
-
-		skip := false
-		var restTokens []string
-		for _, token := range tokens {
-			if strings.HasPrefix(token, "level=") {
-				if line.Level != strings.ToUpper(strings.Split(token, "=")[1]) {
-					skip = true
-				}
-				continue
-			}
-
-			if strings.HasPrefix(token, "level!=") {
-				if line.Level == strings.ToUpper(strings.Split(token, "!=")[1]) {
-					skip = true
-				}
-				continue
-			}
-
-			if strings.HasPrefix(token, "!") {
-				if strings.Contains(line.Body, token[1:]) {
-					skip = true
-				}
-				continue
-			}
-			restTokens = append(restTokens, token)
-		}
+	for line := range ch {
+		skip, restTokens := shouldSkipLine(tokens, line)
 
 		if skip {
 			continue
@@ -115,6 +75,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 		}
 
 		if len(ret) == limit+realOffset {
+			close(done)
 			break
 		}
 	}
@@ -124,6 +85,35 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	reverseLogline(ret)
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now)
+}
+
+func shouldSkipLine(tokens []string, line LogLine) (bool, []string) {
+	skip := false
+	var restTokens []string
+	for _, token := range tokens {
+		if strings.HasPrefix(token, "level=") {
+			if line.Level != strings.ToUpper(strings.Split(token, "=")[1]) {
+				skip = true
+			}
+			continue
+		}
+
+		if strings.HasPrefix(token, "level!=") {
+			if line.Level == strings.ToUpper(strings.Split(token, "!=")[1]) {
+				skip = true
+			}
+			continue
+		}
+
+		if strings.HasPrefix(token, "!") {
+			if strings.Contains(line.Body, token[1:]) {
+				skip = true
+			}
+			continue
+		}
+		restTokens = append(restTokens, token)
+	}
+	return skip, restTokens
 }
 
 func setOffset(offset int) {
