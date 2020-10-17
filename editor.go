@@ -19,11 +19,14 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	switch key {
 	case gocui.KeySpace:
 		v.EditWrite(' ')
+		renderSearch(v, 0)
 	case gocui.KeyBackspace, gocui.KeyBackspace2:
 		v.EditDelete(true)
 		moveAhead(v)
+		renderSearch(v, 0)
 	case gocui.KeyDelete:
 		v.EditDelete(false)
+		renderSearch(v, 0)
 	case gocui.KeyArrowLeft:
 		v.MoveCursor(-1, 0, false)
 		moveAhead(v)
@@ -63,6 +66,7 @@ func editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 	}
 	if ch != 0 && mod == 0 {
 		v.EditWrite(ch)
+		renderSearch(v, 0)
 	}
 }
 func Min(x, y int) int {

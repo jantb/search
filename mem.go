@@ -54,7 +54,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 	tokens := strings.Split(strings.TrimSpace(query), " ")
 
 	setOffset(offset)
-
+	insertOffset := realOffset
 	if getLength() == 0 {
 		return []LogLine{}, time.Now().Sub(now)
 	}
@@ -71,16 +71,17 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 		join := strings.Join(restTokens, " ")
 
 		if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(join)) || strings.Contains(line.getBody(), join) {
-			ret = append(ret, line)
+			if insertOffset == 0 {
+				ret = append(ret, line)
+			} else {
+				insertOffset--
+			}
 		}
 
 		if len(ret) == limit+realOffset {
 			close(done)
 			break
 		}
-	}
-	if len(ret) > realOffset {
-		ret = ret[realOffset:]
 	}
 	reverseLogline(ret)
 	bottom.Store(realOffset == 0)
