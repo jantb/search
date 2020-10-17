@@ -110,7 +110,6 @@ func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 	_, y := v.Cursor()
 	if len(selectedPods) > y {
 		name := selectedPods[podCommandY].Metadata.Name
-		fmt.Println("Logging " + name)
 		insertChanJson := make(chan map[string]interface{})
 		go func(insertChanJson chan map[string]interface{}, podName string) {
 			kube.GetPodLogsStream(podName, insertChanJson)
