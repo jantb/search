@@ -20,21 +20,28 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 					if len(loglines) == 0 {
 						continue
 					}
-					loglines[len(loglines)-1].Body += "\n" + md["body"]
-					return LogLine{Body: line}, false
+					l := loglines[len(loglines)-1]
+					l.setBody(l.getBody() + "\n" + md["body"])
+					logLine := LogLine{}
+					logLine.setBody(line)
+					return logLine, false
 				}
 				timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
-				return LogLine{
+				logLine := LogLine{
 					Time:   timestamp,
-					System: md["system"],
-					Level:  md["level"],
-					Body:   md["body"],
-				}, true
+					system: md["system"],
+				}
+				logLine.setLevel(md["level"])
+				logLine.setSystem(md["system"])
+				logLine.setBody(md["body"])
+				return logLine, true
 
 			}
 		}
 	}
-	return LogLine{Body: line}, false
+	logLine := LogLine{}
+	logLine.setBody(line)
+	return logLine, false
 }
 
 func parseLineJson(line map[string]interface{}) ([]LogLine, bool) {
@@ -44,11 +51,11 @@ func parseLineJson(line map[string]interface{}) ([]LogLine, bool) {
 		body = cast(line, "message") + "\n" + cast(line, "stack_trace")
 	}
 	l := LogLine{
-		Time:   toMillis(parseTimestampJson(cast(line, "@timestamp"))),
-		System: cast(line, "HOSTNAME"),
-		Level:  cast(line, "level"),
-		Body:   body,
+		Time: toMillis(parseTimestampJson(cast(line, "@timestamp"))),
 	}
+	l.setSystem(cast(line, "HOSTNAME"))
+	l.setLevel(cast(line, "level"))
+	l.setBody(body)
 	logLines = append(logLines, l)
 	return logLines, true
 }
@@ -112,7 +119,7 @@ func insertIntoStoreJsonSystem(insertChan chan map[string]interface{}, system st
 				line := <-insertChan
 				logLines, found := parseLineJson(line)
 				for j := range logLines {
-					logLines[j].System = system
+					logLines[j].setSystem(system)
 				}
 				if !found {
 					continue

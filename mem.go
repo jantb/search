@@ -70,7 +70,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 
 		join := strings.Join(restTokens, " ")
 
-		if len(query) == 0 || strings.Contains(line.Level, strings.ToUpper(join)) || strings.Contains(line.Body, join) {
+		if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(join)) || strings.Contains(line.getBody(), join) {
 			ret = append(ret, line)
 		}
 
@@ -92,21 +92,21 @@ func shouldSkipLine(tokens []string, line LogLine) (bool, []string) {
 	var restTokens []string
 	for _, token := range tokens {
 		if strings.HasPrefix(token, "level=") {
-			if line.Level != strings.ToUpper(strings.Split(token, "=")[1]) {
+			if line.getLevel() != strings.ToUpper(strings.Split(token, "=")[1]) {
 				skip = true
 			}
 			continue
 		}
 
 		if strings.HasPrefix(token, "level!=") {
-			if line.Level == strings.ToUpper(strings.Split(token, "!=")[1]) {
+			if line.getLevel() == strings.ToUpper(strings.Split(token, "!=")[1]) {
 				skip = true
 			}
 			continue
 		}
 
 		if strings.HasPrefix(token, "!") {
-			if strings.Contains(line.Body, token[1:]) {
+			if strings.Contains(line.getBody(), token[1:]) {
 				skip = true
 			}
 			continue

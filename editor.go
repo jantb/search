@@ -85,7 +85,7 @@ var printRed = color.New(color.FgRed).Sprint
 var printYellow = color.New(color.FgYellow).Sprint
 var printGreen = color.New(color.FgGreen).Sprint
 var printWhite = color.New(color.FgWhite).Sprint
-var printYellowBack = color.New(color.BgYellow, color.Faint).Add(color.FgWhite).Sprint
+var printYellowBack = color.New(color.BgYellow, color.Faint).Add(color.FgBlue).Sprint
 var runeTL, runeTR, runeBL, runeBR = '┌', '┐', '└', '┘'
 var runeH, runeV = '─', '│'
 var renderSearchSemaphore = semaphore.NewWeighted(int64(1))
@@ -102,7 +102,7 @@ func renderSearch(v *gocui.View, offset int) {
 			for _, value := range l {
 				buffer := strings.TrimSpace(v.Buffer())
 				levelFunc := printWhite
-				switch value.Level {
+				switch value.getLevel() {
 				case "ERROR":
 					levelFunc = printRed
 				case "WARN":
@@ -112,7 +112,7 @@ func renderSearch(v *gocui.View, offset int) {
 				case "DEBUG":
 					levelFunc = printWhite
 				}
-				line := fmt.Sprintf("%s %s %s %s", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printYellow(value.System), levelFunc(value.Level), highlight(buffer, strings.TrimSpace(value.Body)))
+				line := fmt.Sprintf("%s %s %s %s", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printYellow(value.getSystem()), levelFunc(value.getLevel()), highlight(buffer, strings.TrimSpace(value.getBody())))
 				lines := strings.Split(line, "\n")
 				for _, value := range split([]rune(strings.TrimSpace(lines[0])), len(lines[0])-len(Strip(lines[0]))+x-1) {
 					fmt.Fprintln(logs, string(value))
