@@ -51,7 +51,7 @@ func GetPodLogsStream(podName string, insertChanJson chan map[string]interface{}
 		}
 		var j map[string]interface{}
 		if err := json.Unmarshal([]byte(line), &j); err != nil {
-			return
+			continue
 		} else {
 			insertChanJson <- j
 		}

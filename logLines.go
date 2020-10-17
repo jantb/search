@@ -12,8 +12,12 @@ var (
 			return make(map[string]string)
 		},
 	}
+	poolCount = 0
 )
 
+func InternSize() int {
+	return poolCount
+}
 func Intern(s string) string {
 	m := pool.Get().(map[string]string)
 	c, ok := m[s]
@@ -21,6 +25,7 @@ func Intern(s string) string {
 		pool.Put(m)
 		return c
 	}
+	poolCount++
 	m[s] = s
 	pool.Put(m)
 	return s
