@@ -50,8 +50,12 @@ func parseLineJson(line map[string]interface{}) ([]LogLine, bool) {
 	if len(cast(line, "stack_trace")) > 0 {
 		body = cast(line, "message") + "\n" + cast(line, "stack_trace")
 	}
+	timestamp := cast(line, "@timestamp")
+	if len(timestamp) == 0 {
+		timestamp = cast(line, "timestamp")
+	}
 	l := LogLine{
-		Time: toMillis(parseTimestampJson(cast(line, "@timestamp"))),
+		Time: toMillis(parseTimestampJson(timestamp)),
 	}
 	l.setSystem(cast(line, "HOSTNAME"))
 	l.setLevel(cast(line, "level"))
@@ -71,7 +75,10 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 	s := regex.Timestamp
 	date, e := time.ParseInLocation(s, strings.Replace(timestamp, ",", ".", -1), time.Local)
 	if e != nil {
-		date = time.Now().Add(-100 * time.Minute)
+		date, e = time.ParseInLocation("2006-01-02T15:04:05.999Z", strings.Replace(timestamp, ",", ".", -1), time.Local)
+		if e != nil {
+			date = time.Now()
+		}
 	}
 	if date.Year() == 0 {
 		date = date.AddDate(time.Now().Year(), 0, 0)
@@ -82,7 +89,10 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 func parseTimestampJson(timestamp string) time.Time {
 	date, e := time.ParseInLocation("2006-01-02T15:04:05.999-07:00", strings.Replace(timestamp, ",", ".", -1), time.Local)
 	if e != nil {
-		date = time.Now().Add(-100 * time.Minute)
+		date, e = time.ParseInLocation("2006-01-02T15:04:05.999Z", strings.Replace(timestamp, ",", ".", -1), time.Local)
+		if e != nil {
+			date = time.Now()
+		}
 	}
 	if date.Year() == 0 {
 		date = date.AddDate(time.Now().Year(), 0, 0)
@@ -125,20 +135,11 @@ func insertIntoStoreJsonSystem(insertChan chan map[string]interface{}, system st
 }
 
 func insertIntoStoreJson(insertChan chan map[string]interface{}) {
-	for {
-		length := len(insertChan)
-		if length > 0 {
-			for i := 0; i < length; i++ {
-				line := <-insertChan
-				logLines, found := parseLineJson(line)
-				if !found {
-					continue
-				}
-				insertLogLinesChan <- logLines
-				//insertLoglinesToStore(logLines)
-			}
-		} else {
-			time.Sleep(time.Second)
+	for line := range insertChan {
+		logLines, found := parseLineJson(line)
+		if !found {
+			continue
 		}
+		insertLogLinesChan <- logLines
 	}
 }
