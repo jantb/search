@@ -3,12 +3,12 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"io"
 	"os"
+	"strings"
 )
 
-func readFromPipe(insertChan chan string, insertChanJson chan map[string]interface{}) {
+func readFromPipe(insertChan chan string, insertChanJson chan []byte) {
 	var buffer bytes.Buffer
 	fi, err := os.Stdin.Stat()
 	if err != nil {
@@ -40,11 +40,10 @@ func readFromPipe(insertChan chan string, insertChanJson chan map[string]interfa
 		if err != nil && err == io.EOF {
 			break
 		}
-		var j map[string]interface{}
-		if err := json.Unmarshal(line, &j); err != nil {
-			insertChan <- string(line)
+		if strings.HasPrefix(strings.TrimSpace(string(line)), "{") {
+			insertChanJson <- line
 		} else {
-			insertChanJson <- j
+			insertChan <- string(line)
 		}
 	}
 }

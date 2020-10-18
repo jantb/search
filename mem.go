@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-var bst = Tree{}
+var tree = Tree{}
 var realOffset = 0
 var id int
 
@@ -29,22 +29,15 @@ func loadSettings(key string) string {
 }
 
 func getLength() int {
-	return bst.size
+	return tree.size
 }
 
-func insertIntoStoreByChan(insertChan chan []LogLine) {
-	for {
-		line := <-insertChan
-		insertLoglinesToStore(line)
-		bottomChan <- true
-	}
-}
-
-func insertLoglinesToStore(logLines []LogLine) {
-	for _, line := range logLines {
+func insertIntoStoreByChan(insertChan chan LogLine) {
+	for line := range insertChan {
 		id++
 		line.Id = id
-		bst.Put(line)
+		tree.Put(line)
+		bottomChan <- true
 	}
 }
 
@@ -59,9 +52,7 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 		return []LogLine{}, time.Now().Sub(now)
 	}
 	done := make(chan struct{})
-	ch := bst.Iterate(done)
-
-	for line := range ch {
+	for line := range tree.Iterate(done) {
 		skip, restTokens := shouldSkipLine(tokens, line)
 
 		if skip {

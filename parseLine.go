@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/valyala/fastjson"
 	"strings"
 	"time"
 )
@@ -44,6 +45,25 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 	return logLine, false
 }
 
+func parseLineJsonFastJson(line []byte) LogLine {
+	body := fastjson.GetString(line, "message")
+	stack := fastjson.GetString(line, "stack_trace")
+	if len(stack) > 0 {
+		body = body + "\n" + stack
+	}
+	timestamp := fastjson.GetString(line, "@timestamp")
+	if len(timestamp) == 0 {
+		timestamp = fastjson.GetString(line, "timestamp")
+	}
+	l := LogLine{
+		Time: toMillis(parseTimestampJson(timestamp)),
+	}
+	l.setSystem(fastjson.GetString(line, "HOSTNAME"))
+	l.setLevel(fastjson.GetString(line, "level"))
+	l.setBody(body)
+	return l
+}
+
 func parseLineJson(line map[string]interface{}) ([]LogLine, bool) {
 	var logLines []LogLine
 	body := cast(line, "message")
@@ -75,10 +95,7 @@ func parseTimestamp(regex Regex, timestamp string) time.Time {
 	s := regex.Timestamp
 	date, e := time.ParseInLocation(s, strings.Replace(timestamp, ",", ".", -1), time.Local)
 	if e != nil {
-		date, e = time.ParseInLocation("2006-01-02T15:04:05.999Z", strings.Replace(timestamp, ",", ".", -1), time.Local)
-		if e != nil {
-			date = time.Now()
-		}
+		date = time.Now()
 	}
 	if date.Year() == 0 {
 		date = date.AddDate(time.Now().Year(), 0, 0)
@@ -91,7 +108,7 @@ func parseTimestampJson(timestamp string) time.Time {
 	if e != nil {
 		date, e = time.ParseInLocation("2006-01-02T15:04:05.999Z", strings.Replace(timestamp, ",", ".", -1), time.Local)
 		if e != nil {
-			date = time.Now()
+			date = time.Now().Add(-200 * time.Hour)
 		}
 	}
 	if date.Year() == 0 {
@@ -113,33 +130,20 @@ func insertIntoStore(insertChan chan string) {
 				}
 				logLines = append(logLines, logLine)
 			}
-			insertLogLinesChan <- logLines
-			//insertLoglinesToStore(logLines)
+			for _, line := range logLines {
+				insertLogLinesChan <- line
+			}
+
 		} else {
 			time.Sleep(time.Second)
 		}
 	}
 }
 
-func insertIntoStoreJsonSystem(insertChan chan map[string]interface{}, system string) {
+func insertIntoStoreJsonSystem(insertChan chan []byte, system string) {
 	for line := range insertChan {
-		logLines, found := parseLineJson(line)
-		for j := range logLines {
-			logLines[j].setSystem(system)
-		}
-		if !found {
-			continue
-		}
-		insertLogLinesChan <- logLines
-	}
-}
-
-func insertIntoStoreJson(insertChan chan map[string]interface{}) {
-	for line := range insertChan {
-		logLines, found := parseLineJson(line)
-		if !found {
-			continue
-		}
-		insertLogLinesChan <- logLines
+		logLine := parseLineJsonFastJson(line)
+		logLine.setSystem(system)
+		insertLogLinesChan <- logLine
 	}
 }

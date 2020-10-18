@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -20,41 +19,24 @@ func GetPods() Pods {
 	return getPods
 }
 
-func GetPodLogs(podName string, insertChanJson chan map[string]interface{}) {
-	output, err := exec.Command("kubectl", "logs", "--since=200h", podName).CombinedOutput()
-	checkErr(err)
-	for _, line := range strings.Split(string(output), "\n") {
-		var j map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &j); err != nil {
-		} else {
-			insertChanJson <- j
-		}
-	}
-}
-
-func GetPodLogsStream(podName string, insertChanJson chan map[string]interface{}) {
+func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte) {
 	command := exec.Command("kubectl", "logs", "-f", "--since=200h", podName)
 	pipe, err := command.StdoutPipe()
 	command.Start()
 	checkErr(err)
 	reader := bufio.NewReader(pipe)
 
-	var line string
+	var line []byte
 	for {
-		line, err = reader.ReadString('\n')
+		line, err = reader.ReadBytes(byte('\n'))
 		if err != nil {
 			time.Sleep(60 * time.Second)
-			go func(insertChanJson chan map[string]interface{}, podName string) {
-				GetPodLogsStream(podName, insertChanJson)
+			go func(insertChanJson chan []byte, podName string) {
+				GetPodLogsStreamFastJson(podName, insertChanJson)
 			}(insertChanJson, podName)
 			return
 		}
-		var j map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &j); err != nil {
-			continue
-		} else {
-			insertChanJson <- j
-		}
+		insertChanJson <- line
 	}
 }
 

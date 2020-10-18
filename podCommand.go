@@ -110,9 +110,9 @@ func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 	_, y := v.Cursor()
 	if len(selectedPods) > y {
 		name := selectedPods[podCommandY].Metadata.Name
-		insertChanJson := make(chan map[string]interface{})
-		go func(insertChanJson chan map[string]interface{}, podName string) {
-			kube.GetPodLogsStream(podName, insertChanJson)
+		insertChanJson := make(chan []byte)
+		go func(insertChanJson chan []byte, podName string) {
+			kube.GetPodLogsStreamFastJson(podName, insertChanJson)
 		}(insertChanJson, name)
 		go insertIntoStoreJsonSystem(insertChanJson, name)
 	}
@@ -124,10 +124,10 @@ func podCommandsCTRLEnter(g *gocui.Gui, v *gocui.View) error {
 
 	if len(selectedPods) > 0 {
 		for i, _ := range selectedPods {
-			insertChanJson := make(chan map[string]interface{})
+			insertChanJson := make(chan []byte)
 			podName := selectedPods[i].Metadata.Name
-			go func(insertChanJson chan map[string]interface{}, podName string) {
-				kube.GetPodLogsStream(podName, insertChanJson)
+			go func(insertChanJson chan []byte, podName string) {
+				kube.GetPodLogsStreamFastJson(podName, insertChanJson)
 			}(insertChanJson, podName)
 			go insertIntoStoreJsonSystem(insertChanJson, podName)
 		}

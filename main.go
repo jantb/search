@@ -12,10 +12,10 @@ import (
 var formats Formats
 var gui *gocui.Gui
 var bottom atomic.Bool
-var insertLogLinesChan = make(chan []LogLine, 10000)
-var insertChanJson = make(chan map[string]interface{}, 10000)
-var insertChan = make(chan string, 10000)
-var bottomChan = make(chan bool, 10000)
+var insertLogLinesChan = make(chan LogLine)
+var insertChanJson = make(chan []byte)
+var insertChan = make(chan string)
+var bottomChan = make(chan bool)
 
 func main() {
 	bottom.Store(false)
@@ -29,7 +29,7 @@ func main() {
 
 	go insertIntoStore(insertChan)
 	go insertIntoStoreByChan(insertLogLinesChan)
-	go insertIntoStoreJson(insertChanJson)
+	go insertIntoStoreJsonSystem(insertChanJson, "")
 	go readFromPipe(insertChan, insertChanJson)
 	go bottomRefresh()
 	g.Cursor = true

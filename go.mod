@@ -12,6 +12,7 @@ require (
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mattn/go-runewidth v0.0.6 // indirect
 	github.com/nsf/termbox-go v0.0.0-20190817171036-93860e161317 // indirect
+	github.com/valyala/fastjson v1.6.1
 	go.uber.org/atomic v1.5.1
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 )
