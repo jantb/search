@@ -45,6 +45,7 @@ func activatePodCommands(g *gocui.Gui, v *gocui.View) error {
 	checkErr(err)
 	v, err = g.SetCurrentView("podCommand")
 	checkErr(err)
+	v.Clear()
 	podCommandY = 0
 	v.SetCursor(0, 0)
 	pods = kube.GetPods()
