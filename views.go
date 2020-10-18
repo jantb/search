@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/jroimartin/gocui"
 )
 
@@ -33,31 +32,6 @@ func viewPodCommand(g *gocui.Gui, maxX int, maxY int) error {
 		v.Frame = false
 		v.Editable = true
 		v.Editor = gocui.EditorFunc(editorPodCommand)
-		v.SetCursor(0, 0)
-	}
-	return nil
-}
-
-// View: Settings
-func viewSettings(g *gocui.Gui, maxX int, maxY int) error {
-	if v, err := g.SetView("settings", 0, 0, 120, 7); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		v.Title = "Settings"
-		v.Highlight = true
-		v.SelFgColor = gocui.ColorYellow
-		v.Autoscroll = false
-		v.Wrap = false
-		v.Frame = true
-		v.Editable = false
-
-		fmt.Fprintln(v, "Username       ", loadSettings("username"))
-		fmt.Fprintln(v, "Password       ", "********")
-		fmt.Fprintln(v, "Openshift url  ", loadSettings("openshift"))
-		fmt.Fprintln(v, "Jenkins url    ", loadSettings("jenkins"))
-		fmt.Fprintln(v, "Bitbucket url  ", loadSettings("bitbucket"))
-		fmt.Fprintln(v, "Jira url       ", loadSettings("jira"))
 		v.SetCursor(0, 0)
 	}
 	return nil

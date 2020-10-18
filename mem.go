@@ -8,23 +8,8 @@ import (
 var tree = Tree{}
 var realOffset = 0
 
-func initStore() {
-
-}
-
-func cleanupStore() {
-
-}
-func clearDb() {
-
-}
-
-func storeSettings(key, value string) {
-
-}
-
-func loadSettings(key string) string {
-	return ""
+func clear() {
+	tree = Tree{}
 }
 
 func getLength() int {

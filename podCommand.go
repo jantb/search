@@ -20,9 +20,6 @@ func podCommandKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlP, gocui.ModNone, deactivatePodCommands); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlS, gocui.ModNone, deactivateSettings); err != nil {
-		return err
-	}
 	if err := g.SetKeybinding("podCommand", gocui.KeyArrowDown, gocui.ModNone, podCommandsDown); err != nil {
 		return err
 	}

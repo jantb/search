@@ -20,8 +20,6 @@ var bottomChan = make(chan bool)
 func main() {
 	bottom.Store(false)
 
-	initStore()
-
 	g, err := gocui.NewGui(gocui.Output256)
 	checkErr(err)
 	gui = g
@@ -46,12 +44,11 @@ func main() {
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
-	cleanupStore()
 	return gocui.ErrQuit
 }
 
 func clean(g *gocui.Gui, v *gocui.View) error {
-	clearDb()
+	clear()
 	return nil
 }
 
@@ -61,7 +58,6 @@ func keybindings(g *gocui.Gui) error {
 	}
 	err := podCommandKeybindings(g)
 	checkErr(err)
-	err = settingsKeybindings(g)
 	if err := g.SetKeybinding("", gocui.KeyCtrlL, gocui.ModNone, clean); err != nil {
 		return err
 	}
@@ -72,8 +68,6 @@ func keybindings(g *gocui.Gui) error {
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	err := viewPodCommand(g, maxX, maxY)
-	checkErr(err)
-	err = viewSettings(g, maxX, maxY)
 	checkErr(err)
 	err = viewLogs(g, maxX, maxY)
 	checkErr(err)
