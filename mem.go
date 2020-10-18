@@ -7,7 +7,6 @@ import (
 
 var tree = Tree{}
 var realOffset = 0
-var id int
 
 func initStore() {
 
@@ -34,8 +33,6 @@ func getLength() int {
 
 func insertIntoStoreByChan(insertChan chan LogLine) {
 	for line := range insertChan {
-		id++
-		line.Id = id
 		tree.Put(line)
 		bottomChan <- true
 	}

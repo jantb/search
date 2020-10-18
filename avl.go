@@ -44,6 +44,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package main
 
 import (
+	"crypto/md5"
 	"fmt"
 	"strings"
 )
@@ -62,7 +63,7 @@ type Node struct {
 }
 
 func (t *Tree) Put(val LogLine) {
-	key := fmt.Sprintf("%d%d", val.Time, t.size)
+	key := fmt.Sprintf("%d%x", val.Time, md5.Sum([]byte(val.getBody())))
 	t.put(key, val, nil, &t.Root)
 }
 

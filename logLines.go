@@ -38,7 +38,6 @@ func reverseLogline(numbers []LogLine) {
 }
 
 type LogLine struct {
-	Id     int
 	level  string
 	system string
 	Time   int64
