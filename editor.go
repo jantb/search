@@ -101,7 +101,7 @@ func renderSearch(v *gocui.View, offset int) {
 			logs, e := gui.View("logs")
 			checkErr(e)
 			x, y := logs.Size()
-			l, t := search(v.Buffer(), y, offset)
+			l, t, count := search(v.Buffer(), y, offset)
 			logs.Clear()
 			for _, value := range l {
 				buffer := strings.TrimSpace(v.Buffer())
@@ -142,7 +142,11 @@ func renderSearch(v *gocui.View, offset int) {
 				lastMessageDuration := time.Now().Sub(l[len(l)-1].getTime())
 				logs.SetOrigin(0, len(logs.BufferLines())-sy)
 				mem, totalStop, g := memusage()
-				fmt.Fprintf(status, "┌─%10s──Follow mode, last message: %s ago──total lines: %d mem: %dmb gc: %s %d %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), getLength(), mem, totalStop, g, InternSize())
+				if count != 0 {
+					fmt.Fprintf(status, "┌─%10s──Follow mode, last message: %s ago──count:%d──total lines: %d mem: %dmb gc: %s %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), count, getLength(), mem, totalStop, g)
+				} else {
+					fmt.Fprintf(status, "┌─%10s──Follow mode, last message: %s ago──total lines: %d mem: %dmb gc: %s %d", t, fmt.Sprint(lastMessageDuration.Round(time.Second)), getLength(), mem, totalStop, g)
+				}
 			} else {
 				fmt.Fprintf(status, "┌─%10s", t)
 			}

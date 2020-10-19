@@ -23,15 +23,22 @@ func insertIntoStoreByChan(insertChan chan LogLine) {
 	}
 }
 
-func search(query string, limit int, offset int) (ret []LogLine, t time.Duration) {
+func search(input string, limit int, offset int) (ret []LogLine, t time.Duration, count int) {
 	now := time.Now()
-	query = strings.TrimSpace(query)
+	input = strings.TrimSpace(input)
+	split := strings.Split(input, "|")
+	query := input
+	command := ""
+	if len(split) == 2 {
+		query = strings.TrimSpace(split[0])
+		command = strings.TrimSpace(split[1])
+	}
 	tokens := strings.Split(strings.TrimSpace(query), " ")
 
 	setOffset(offset)
 	insertOffset := realOffset
 	if getLength() == 0 {
-		return []LogLine{}, time.Now().Sub(now)
+		return []LogLine{}, time.Now().Sub(now), 0
 	}
 	done := make(chan struct{})
 	for line := range tree.Iterate(done) {
@@ -56,9 +63,27 @@ func search(query string, limit int, offset int) (ret []LogLine, t time.Duration
 			break
 		}
 	}
+
+	if command == "count" {
+		done := make(chan struct{})
+		for line := range tree.Iterate(done) {
+			skip, restTokens := shouldSkipLine(tokens, line)
+
+			if skip {
+				continue
+			}
+
+			join := strings.Join(restTokens, " ")
+
+			if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(join)) || strings.Contains(line.getBody(), join) {
+				count++
+			}
+		}
+	}
+
 	reverseLogline(ret)
 	bottom.Store(realOffset == 0)
-	return ret, time.Now().Sub(now)
+	return ret, time.Now().Sub(now), count
 }
 
 func shouldSkipLine(tokens []string, line LogLine) (bool, []string) {
