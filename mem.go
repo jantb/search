@@ -40,17 +40,17 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	if getLength() == 0 {
 		return []LogLine{}, time.Now().Sub(now), 0
 	}
+
+	skipTokens, restTokens := findTokens(tokens)
+	restOfQuery := strings.Join(restTokens, " ")
+
 	done := make(chan struct{})
 	for line := range tree.Iterate(done) {
-		skip, restTokens := shouldSkipLine(tokens, line)
-
-		if skip {
+		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
 
-		join := strings.Join(restTokens, " ")
-
-		if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(join)) || strings.Contains(line.getBody(), join) {
+		if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery) {
 			if insertOffset == 0 {
 				ret = append(ret, line)
 			} else {
@@ -66,16 +66,13 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	if command == "count" {
 		done := make(chan struct{})
-		for line := range tree.Iterate(done) {
-			skip, restTokens := shouldSkipLine(tokens, line)
 
-			if skip {
+		for line := range tree.Iterate(done) {
+			if shouldSkipLine(tokens, line) {
 				continue
 			}
 
-			join := strings.Join(restTokens, " ")
-
-			if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(join)) || strings.Contains(line.getBody(), join) {
+			if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery) {
 				count++
 			}
 		}
@@ -86,13 +83,26 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	return ret, time.Now().Sub(now), count
 }
 
-func shouldSkipLine(tokens []string, line LogLine) (bool, []string) {
-	skip := false
+func findTokens(tokens []string) ([]string, []string) {
+	var skipTokens []string
 	var restTokens []string
+	for i, token := range tokens {
+		if strings.HasPrefix(token, "level=") || strings.HasPrefix(token, "level!=") || strings.HasPrefix(token, "!") {
+			skipTokens = append(skipTokens, tokens[i])
+			continue
+		}
+		restTokens = append(restTokens, tokens[i])
+	}
+	return skipTokens, restTokens
+}
+
+func shouldSkipLine(tokens []string, line LogLine) bool {
+	skip := false
 	for _, token := range tokens {
 		if strings.HasPrefix(token, "level=") {
 			if line.getLevel() != strings.ToUpper(strings.Split(token, "=")[1]) {
 				skip = true
+				break
 			}
 			continue
 		}
@@ -100,6 +110,7 @@ func shouldSkipLine(tokens []string, line LogLine) (bool, []string) {
 		if strings.HasPrefix(token, "level!=") {
 			if line.getLevel() == strings.ToUpper(strings.Split(token, "!=")[1]) {
 				skip = true
+				break
 			}
 			continue
 		}
@@ -107,12 +118,12 @@ func shouldSkipLine(tokens []string, line LogLine) (bool, []string) {
 		if strings.HasPrefix(token, "!") {
 			if strings.Contains(line.getBody(), token[1:]) {
 				skip = true
+				break
 			}
 			continue
 		}
-		restTokens = append(restTokens, token)
 	}
-	return skip, restTokens
+	return skip
 }
 
 func setOffset(offset int) {
