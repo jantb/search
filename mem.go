@@ -52,7 +52,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 			continue
 		}
 
-		if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery) {
+		if includeLine(query, line, restOfQuery) {
 			if insertOffset == 0 {
 				ret = append(ret, line)
 			} else {
@@ -77,13 +77,12 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	if command == "count" {
 		done := make(chan struct{})
-
 		for line := range tree.Iterate(done) {
 			if shouldSkipLine(tokens, line) {
 				continue
 			}
 
-			if len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery) {
+			if includeLine(query, line, restOfQuery) {
 				count++
 			}
 		}
@@ -94,11 +93,15 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	return ret, time.Now().Sub(now), count
 }
 
+func includeLine(query string, line LogLine, restOfQuery string) bool {
+	return len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getSystem(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery)
+}
+
 func findTokens(tokens []string) ([]string, []string) {
 	var skipTokens []string
 	var restTokens []string
 	for i, token := range tokens {
-		if strings.HasPrefix(token, "level=") || strings.HasPrefix(token, "level!=") || strings.HasPrefix(token, "!") {
+		if strings.HasPrefix(token, "level=") || strings.HasPrefix(token, "level!=") || strings.HasPrefix(token, "!") || strings.HasPrefix(token, "system=") || strings.HasPrefix(token, "system!=") {
 			skipTokens = append(skipTokens, tokens[i])
 			continue
 		}
@@ -110,6 +113,22 @@ func findTokens(tokens []string) ([]string, []string) {
 func shouldSkipLine(tokens []string, line LogLine) bool {
 	skip := false
 	for _, token := range tokens {
+		if strings.HasPrefix(token, "system=") {
+			if !strings.Contains(strings.ToUpper(line.getSystem()), strings.ToUpper(strings.Split(token, "=")[1])) {
+				skip = true
+				break
+			}
+			continue
+		}
+
+		if strings.HasPrefix(token, "system!=") {
+			if strings.Contains(strings.ToUpper(line.getSystem()), strings.ToUpper(strings.Split(token, "!=")[1])) {
+				skip = true
+				break
+			}
+			continue
+		}
+
 		if strings.HasPrefix(token, "level=") {
 			if line.getLevel() != strings.ToUpper(strings.Split(token, "=")[1]) {
 				skip = true
