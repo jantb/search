@@ -45,6 +45,10 @@ func (l LogLine) getTime() time.Time {
 }
 
 func (l LogLine) getBody() string {
+	if l.body == nil {
+		return ""
+	}
+
 	return strings.Join(l.body, " ")
 }
 

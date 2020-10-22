@@ -44,6 +44,8 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	skipTokens, restTokens := findTokens(tokens)
 	restOfQuery := strings.Join(restTokens, " ")
 
+	reachedTop := false
+
 	done := make(chan struct{})
 	for line := range tree.Iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
@@ -60,8 +62,17 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 		if len(ret) == limit+realOffset {
 			close(done)
+			reachedTop = true
 			break
 		}
+	}
+	for !reachedTop && len(ret) != limit+realOffset {
+		ret = append(ret, LogLine{
+			level:  "",
+			system: "",
+			Time:   0,
+			body:   nil,
+		})
 	}
 
 	if command == "count" {
