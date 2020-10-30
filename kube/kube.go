@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"time"
 )
 
 func GetPods() Pods {
@@ -30,10 +29,6 @@ func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte) {
 	for {
 		line, err = reader.ReadBytes(byte('\n'))
 		if err != nil {
-			time.Sleep(60 * time.Second)
-			go func(insertChanJson chan []byte, podName string) {
-				GetPodLogsStreamFastJson(podName, insertChanJson)
-			}(insertChanJson, podName)
 			return
 		}
 		insertChanJson <- line
