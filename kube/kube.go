@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 func GetPods() Pods {
@@ -19,6 +20,12 @@ func GetPods() Pods {
 }
 
 func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte) {
+	output, err := exec.Command("oc", "logs", podName, "--previous").CombinedOutput()
+	checkErr(err)
+	for _, s := range strings.Split(string(output), "\n") {
+		insertChanJson <- []byte(s)
+	}
+
 	command := exec.Command("oc", "logs", "-f", "--since=200h", podName)
 	pipe, err := command.StdoutPipe()
 	command.Start()
