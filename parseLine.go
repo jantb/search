@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/valyala/fastjson"
+	"go4.org/intern"
 	"strings"
 	"time"
 )
@@ -30,7 +31,7 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 				timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
 				logLine := LogLine{
 					Time:   timestamp,
-					system: md["system"],
+					system: intern.GetByString(md["system"]),
 				}
 				logLine.setLevel(md["level"])
 				logLine.setSystem(md["system"])

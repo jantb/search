@@ -1,31 +1,10 @@
 package main
 
 import (
+	"go4.org/intern"
 	"strings"
-	"sync"
 	"time"
 )
-
-var (
-	pool = sync.Pool{
-		New: func() interface{} {
-			return make(map[string]string)
-		},
-	}
-	poolCount = 0
-)
-
-func Intern(s string) string {
-	m := pool.Get().(map[string]string)
-	c, ok := m[s]
-	if ok {
-		pool.Put(m)
-		return c
-	}
-	m[s] = s
-	pool.Put(m)
-	return s
-}
 
 func reverseLogline(numbers []LogLine) {
 	for i, j := 0, len(numbers)-1; i < j; i, j = i+1, j-1 {
@@ -34,10 +13,10 @@ func reverseLogline(numbers []LogLine) {
 }
 
 type LogLine struct {
-	level  string
-	system string
+	level  *intern.Value
+	system *intern.Value
 	Time   int64
-	body   []string
+	body   []*intern.Value
 }
 
 func (l LogLine) getTime() time.Time {
@@ -49,28 +28,37 @@ func (l LogLine) getBody() string {
 		return ""
 	}
 
-	return strings.Join(l.body, " ")
+	var sb strings.Builder
+	for i, value := range l.body {
+		if i == 0 {
+			sb.WriteString(value.Get().(string))
+		} else {
+			sb.WriteString(" ")
+			sb.WriteString(value.Get().(string))
+		}
+	}
+	return sb.String()
 }
 
 func (l *LogLine) setBody(body string) {
 	s := strings.Split(body, " ")
 	for _, part := range s {
-		l.body = append(l.body, Intern(part))
+		l.body = append(l.body, intern.GetByString(part))
 	}
 }
 
 func (l LogLine) getLevel() string {
-	return l.level
+	return l.level.Get().(string)
 }
 
 func (l *LogLine) setLevel(level string) {
-	l.level = Intern(level)
+	l.level = intern.GetByString(level)
 }
 
 func (l LogLine) getSystem() string {
-	return l.system
+	return l.system.Get().(string)
 }
 
 func (l *LogLine) setSystem(s string) {
-	l.system = Intern(s)
+	l.system = intern.GetByString(s)
 }

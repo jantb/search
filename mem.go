@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go4.org/intern"
 	"strings"
 	"time"
 )
@@ -68,8 +69,8 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	}
 	for !reachedTop && len(ret) != limit+realOffset {
 		ret = append(ret, LogLine{
-			level:  "",
-			system: "",
+			level:  intern.GetByString(""),
+			system: intern.GetByString(""),
 			Time:   0,
 			body:   nil,
 		})

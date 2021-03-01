@@ -9,7 +9,7 @@ import (
 )
 
 func GetPods() Pods {
-	output, err := exec.Command("kubectl", "get", "pods", "-o", "json").CombinedOutput()
+	output, err := exec.Command("oc", "get", "pods", "-o", "json").CombinedOutput()
 	checkErr(err)
 
 	var getPods = Pods{}
@@ -19,7 +19,7 @@ func GetPods() Pods {
 }
 
 func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte) {
-	command := exec.Command("kubectl", "logs", "-f", "--since=200h", podName)
+	command := exec.Command("oc", "logs", "-f", "--since=200h", podName)
 	pipe, err := command.StdoutPipe()
 	command.Start()
 	checkErr(err)
