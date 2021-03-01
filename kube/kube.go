@@ -21,9 +21,10 @@ func GetPods() Pods {
 
 func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte) {
 	output, err := exec.Command("oc", "logs", podName, "--previous").CombinedOutput()
-	checkErr(err)
-	for _, s := range strings.Split(string(output), "\n") {
-		insertChanJson <- []byte(s)
+	if err == nil {
+		for _, s := range strings.Split(string(output), "\n") {
+			insertChanJson <- []byte(s)
+		}
 	}
 
 	command := exec.Command("oc", "logs", "-f", "--since=200h", podName)
