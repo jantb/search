@@ -6,20 +6,26 @@ import (
 	"time"
 )
 
-var tree = Tree{}
+var ll = LL{}
 var realOffset = 0
 
 func clear() {
-	tree = Tree{}
+	ll = LL{}
+}
+
+func removeLast() {
+	for mem, _, _ := memusage(); mem > 500; mem, _, _ = memusage() {
+		ll.RemoveLast()
+	}
 }
 
 func getLength() int {
-	return tree.size
+	return ll.size
 }
 
 func insertIntoStoreByChan(insertChan chan LogLine) {
 	for line := range insertChan {
-		tree.Put(line)
+		ll.Put(line)
 		bottomChan <- true
 	}
 }
@@ -48,7 +54,8 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	reachedTop := false
 
 	done := make(chan struct{})
-	for line := range tree.Iterate(done) {
+
+	for line := range ll.Iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
@@ -78,7 +85,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	if command == "count" {
 		done := make(chan struct{})
-		for line := range tree.Iterate(done) {
+		for line := range ll.Iterate(done) {
 			if shouldSkipLine(tokens, line) {
 				continue
 			}
