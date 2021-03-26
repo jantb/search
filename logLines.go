@@ -60,16 +60,6 @@ func (l LogLine) matchOrNot(query string,
 	return false, match, noMatch
 }
 
-func (l LogLine) matches(query string, restOfQuery string) bool {
-	level := strings.Contains(l.getLevel(), strings.ToUpper(restOfQuery))
-	system := strings.Contains(l.getSystem(), strings.ToUpper(restOfQuery))
-	body := strings.Contains(l.getBody(), restOfQuery)
-
-	return len(query) == 0 || level ||
-		system ||
-		body
-}
-
 func (l LogLine) getBody() string {
 	if l.body == nil {
 		return ""

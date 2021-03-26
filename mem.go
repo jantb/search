@@ -95,11 +95,17 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	if command == "count" {
 		done := make(chan struct{})
 		for line := range ll.Iterate(done) {
-			if shouldSkipLine(tokens, line) {
+			if shouldSkipLine(skipTokens, line) {
 				continue
 			}
-
-			if line.matches(query, restOfQuery) {
+			match, m, n := line.matchOrNot(restOfQuery, matchSet, noMatchSet)
+			for _, value := range m {
+				matchSet[value] = true
+			}
+			for _, value := range n {
+				noMatchSet[value] = true
+			}
+			if match {
 				count++
 			}
 		}
