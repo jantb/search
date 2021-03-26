@@ -15,6 +15,11 @@ type LNode struct {
 	val  LogLine
 }
 
+func (ll LL) GetSize() int {
+	ll.m.Lock()
+	defer ll.m.Unlock()
+	return ll.size
+}
 func (ll *LL) Put(line LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
