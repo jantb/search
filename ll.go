@@ -18,59 +18,43 @@ type LNode struct {
 func (ll *LL) Put(line LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
+	lNode := &LNode{
+		next: nil,
+		prev: nil,
+		val:  line,
+	}
+
 	if ll.size == 0 {
-		ll.Head = &LNode{
-			next: nil,
-			prev: nil,
-			val:  line,
-		}
+		ll.Head = lNode
 		ll.Tail = ll.Head
 	} else {
 		curr := ll.Head
 
 		if curr.val.Time <= line.Time {
-			ll.prepend(&LNode{
-				next: nil,
-				prev: nil,
-				val:  line,
-			})
+			head := ll.Head
+			head.prev = lNode
+			lNode.next = head
+			ll.Head = lNode
 			return
 		} else {
 			for curr != nil && curr.val.Time > line.Time {
 				curr = curr.next
 			}
-			l := &LNode{
-				next: nil,
-				prev: nil,
-				val:  line,
-			}
-			if curr == nil {
-				tail := ll.Tail
-				ll.Tail = l
-				tail.next = l
-				l.prev = tail
-			} else {
+
+			if curr != nil {
 				prev := curr.prev
-				prev.next = l
-				l.next = curr
-				l.prev = prev
+				prev.next = lNode
+				lNode.next = curr
+				lNode.prev = prev
+			} else {
+				tail := ll.Tail
+				ll.Tail = lNode
+				tail.next = lNode
+				lNode.prev = tail
 			}
 		}
 	}
 
-	ll.size++
-}
-
-func (ll *LL) prepend(lNode *LNode) {
-	if ll.size == 0 {
-		ll.Head = lNode
-		ll.Tail = lNode
-	} else {
-		head := ll.Head
-		head.prev = lNode
-		lNode.next = head
-		ll.Head = lNode
-	}
 	ll.size++
 }
 
