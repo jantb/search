@@ -20,7 +20,7 @@ func removeLast() {
 }
 
 func getLength() int {
-	return ll.size
+	return ll.GetSize()
 }
 
 func insertIntoStoreByChan(insertChan chan LogLine) {
