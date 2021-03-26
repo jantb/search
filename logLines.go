@@ -22,6 +22,55 @@ type LogLine struct {
 func (l LogLine) getTime() time.Time {
 	return time.Unix(0, l.Time*1000000)
 }
+func (l LogLine) matchOrNot(query string,
+	matches map[*intern.Value]bool,
+	noMatches map[*intern.Value]bool) (bool, []*intern.Value, []*intern.Value) {
+
+	ids := make(map[*intern.Value]bool)
+	ids[l.level] = true
+	ids[l.system] = true
+	for _, value := range l.body {
+		ids[value] = true
+	}
+	for k := range noMatches {
+		delete(ids, k)
+	}
+	var match []*intern.Value
+	var noMatch []*intern.Value
+	for k := range matches {
+		if ids[k] {
+			return true, match, noMatch
+		}
+	}
+
+	for value := range ids {
+		val := value.Get().(string)
+		found := false
+		for _, s := range strings.Split(query, " ") {
+			if strings.Contains(val, s) {
+				found = true
+				break
+			}
+		}
+		if found {
+			match = append(match, value)
+			return true, match, noMatch
+		} else {
+			noMatch = append(noMatch, value)
+		}
+	}
+	return false, match, noMatch
+}
+
+func (l LogLine) matches(query string, restOfQuery string) bool {
+	level := strings.Contains(l.getLevel(), strings.ToUpper(restOfQuery))
+	system := strings.Contains(l.getSystem(), strings.ToUpper(restOfQuery))
+	body := strings.Contains(l.getBody(), restOfQuery)
+
+	return len(query) == 0 || level ||
+		system ||
+		body
+}
 
 func (l LogLine) getBody() string {
 	if l.body == nil {

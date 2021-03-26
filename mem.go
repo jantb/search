@@ -55,12 +55,21 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	done := make(chan struct{})
 
+	matchSet := make(map[*intern.Value]bool)
+	noMatchSet := make(map[*intern.Value]bool)
+
 	for line := range ll.Iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
-
-		if includeLine(query, line, restOfQuery) {
+		match, m, n := line.matchOrNot(restOfQuery, matchSet, noMatchSet)
+		for _, value := range m {
+			matchSet[value] = true
+		}
+		for _, value := range n {
+			noMatchSet[value] = true
+		}
+		if match {
 			if insertOffset == 0 {
 				ret = append(ret, line)
 			} else {
@@ -90,7 +99,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 				continue
 			}
 
-			if includeLine(query, line, restOfQuery) {
+			if line.matches(query, restOfQuery) {
 				count++
 			}
 		}
@@ -99,10 +108,6 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	reverseLogline(ret)
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now), count
-}
-
-func includeLine(query string, line LogLine, restOfQuery string) bool {
-	return len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getSystem(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery)
 }
 
 func findTokens(tokens []string) ([]string, []string) {
