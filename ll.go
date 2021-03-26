@@ -40,7 +40,6 @@ func (ll *LL) Put(line LogLine) {
 			head.prev = lNode
 			lNode.next = head
 			ll.Head = lNode
-			return
 		} else {
 			for curr != nil && curr.val.Time > line.Time {
 				curr = curr.next
