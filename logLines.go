@@ -27,14 +27,17 @@ func (l LogLine) matchOrNot(query string,
 	matches map[*intern.Value]bool,
 	noMatches map[*intern.Value]bool) (bool, []*intern.Value, []*intern.Value) {
 
+	var match []*intern.Value
+	var noMatch []*intern.Value
+	if len(query) == 0 {
+		return true, match, noMatch
+	}
 	for k := range l.ids {
 		if noMatches[k] {
 			delete(l.ids, k)
 		}
 	}
 
-	var match []*intern.Value
-	var noMatch []*intern.Value
 	for k := range matches {
 		if l.ids[k] {
 			return true, match, noMatch

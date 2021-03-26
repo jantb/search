@@ -98,13 +98,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 			if shouldSkipLine(skipTokens, line) {
 				continue
 			}
-			match, m, n := line.matchOrNot(restOfQuery, matchSet, noMatchSet)
-			for _, value := range m {
-				matchSet[value] = true
-			}
-			for _, value := range n {
-				noMatchSet[value] = true
-			}
+			match, _, _ := line.matchOrNot(restOfQuery, matchSet, noMatchSet)
 			if match {
 				count++
 			}
