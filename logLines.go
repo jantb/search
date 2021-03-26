@@ -23,42 +23,37 @@ type LogLine struct {
 func (l LogLine) getTime() time.Time {
 	return time.Unix(0, l.Time*1000000)
 }
-func (l LogLine) matchOrNot(query string,
-	matches map[*intern.Value]bool,
-	noMatches map[*intern.Value]bool) (bool, []*intern.Value, []*intern.Value) {
-
+func (l LogLine) matchOrNot(query []string, matches map[*intern.Value]bool, noMatches map[*intern.Value]bool) (bool, []*intern.Value, []*intern.Value) {
+	ids := map[*intern.Value]bool{}
+	for k, v := range l.ids {
+		ids[k] = v
+	}
 	var match []*intern.Value
 	var noMatch []*intern.Value
 	if len(query) == 0 {
 		return true, match, noMatch
 	}
-	for k := range l.ids {
-		if noMatches[k] {
-			delete(l.ids, k)
-		}
-	}
-
 	for k := range matches {
-		if l.ids[k] {
+		if ids[k] {
 			return true, match, noMatch
 		}
 	}
 
-	for value := range l.ids {
+	for k := range ids {
+		if noMatches[k] {
+			delete(ids, k)
+		}
+	}
+
+	for value := range ids {
 		val := value.Get().(string)
-		found := false
-		for _, s := range strings.Split(query, " ") {
+		for _, s := range query {
 			if strings.Contains(val, s) {
-				found = true
-				break
+				match = append(match, value)
+				return true, match, noMatch
 			}
 		}
-		if found {
-			match = append(match, value)
-			return true, match, noMatch
-		} else {
-			noMatch = append(noMatch, value)
-		}
+		noMatch = append(noMatch, value)
 	}
 	return false, match, noMatch
 }

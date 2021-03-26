@@ -49,7 +49,6 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	}
 
 	skipTokens, restTokens := findTokens(tokens)
-	restOfQuery := strings.Join(restTokens, " ")
 
 	reachedTop := false
 
@@ -62,7 +61,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
-		match, m, n := line.matchOrNot(restOfQuery, matchSet, noMatchSet)
+		match, m, n := line.matchOrNot(restTokens, matchSet, noMatchSet)
 		for _, value := range m {
 			matchSet[value] = true
 		}
@@ -78,11 +77,11 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 		}
 
 		if len(ret) == limit+realOffset {
-			close(done)
 			reachedTop = true
 			break
 		}
 	}
+	close(done)
 	for !reachedTop && len(ret) != limit+realOffset {
 		ret = append(ret, LogLine{
 			level:  intern.GetByString(""),
@@ -98,7 +97,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 			if shouldSkipLine(skipTokens, line) {
 				continue
 			}
-			match, _, _ := line.matchOrNot(restOfQuery, matchSet, noMatchSet)
+			match, _, _ := line.matchOrNot(restTokens, matchSet, noMatchSet)
 			if match {
 				count++
 			}
@@ -118,7 +117,7 @@ func findTokens(tokens []string) ([]string, []string) {
 			skipTokens = append(skipTokens, tokens[i])
 			continue
 		}
-		restTokens = append(restTokens, tokens[i])
+		restTokens = append(restTokens, strings.TrimSpace(tokens[i]))
 	}
 	return skipTokens, restTokens
 }

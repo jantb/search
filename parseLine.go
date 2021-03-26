@@ -65,33 +65,6 @@ func parseLineJsonFastJson(line []byte) LogLine {
 	return l
 }
 
-func parseLineJson(line map[string]interface{}) ([]LogLine, bool) {
-	var logLines []LogLine
-	body := cast(line, "message")
-	if len(cast(line, "stack_trace")) > 0 {
-		body = cast(line, "message") + "\n" + cast(line, "stack_trace")
-	}
-	timestamp := cast(line, "@timestamp")
-	if len(timestamp) == 0 {
-		timestamp = cast(line, "timestamp")
-	}
-	l := LogLine{
-		Time: toMillis(parseTimestampJson(timestamp)),
-	}
-	l.setSystem(cast(line, "HOSTNAME"))
-	l.setLevel(cast(line, "level"))
-	l.setBody(body)
-	logLines = append(logLines, l)
-	return logLines, true
-}
-
-func cast(j map[string]interface{}, field string) string {
-	if j[field] != nil {
-		return j[field].(string)
-	}
-	return ""
-}
-
 func parseTimestamp(regex Regex, timestamp string) time.Time {
 	s := regex.Timestamp
 	date, e := time.ParseInLocation(s, strings.Replace(timestamp, ",", ".", -1), time.Local)
