@@ -17,6 +17,7 @@ type LogLine struct {
 	system *intern.Value
 	Time   int64
 	body   []*intern.Value
+	ids    map[*intern.Value]bool
 }
 
 func (l LogLine) getTime() time.Time {
@@ -26,24 +27,21 @@ func (l LogLine) matchOrNot(query string,
 	matches map[*intern.Value]bool,
 	noMatches map[*intern.Value]bool) (bool, []*intern.Value, []*intern.Value) {
 
-	ids := make(map[*intern.Value]bool)
-	ids[l.level] = true
-	ids[l.system] = true
-	for _, value := range l.body {
-		ids[value] = true
+	for k := range l.ids {
+		if noMatches[k] {
+			delete(l.ids, k)
+		}
 	}
-	for k := range noMatches {
-		delete(ids, k)
-	}
+
 	var match []*intern.Value
 	var noMatch []*intern.Value
 	for k := range matches {
-		if ids[k] {
+		if l.ids[k] {
 			return true, match, noMatch
 		}
 	}
 
-	for value := range ids {
+	for value := range l.ids {
 		val := value.Get().(string)
 		found := false
 		for _, s := range strings.Split(query, " ") {
@@ -93,6 +91,12 @@ func (l *LogLine) setBody(body string) {
 	s := strings.Split(body, " ")
 	for _, part := range s {
 		l.body = append(l.body, intern.GetByString(part))
+	}
+	l.ids = make(map[*intern.Value]bool)
+	l.ids[l.level] = true
+	l.ids[l.system] = true
+	for _, value := range l.body {
+		l.ids[value] = true
 	}
 }
 
