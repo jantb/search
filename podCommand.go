@@ -144,11 +144,11 @@ func demo(g *gocui.Gui, v *gocui.View) error {
 	insertChanJson2 := make(chan []byte)
 	go func(insertChanJson chan []byte, podName string) {
 		for i := 0; i < 5; i++ {
-			insertChanJson <- []byte("{\"@timestamp\":\"2021-03-24T14:33:52.644+00:00\",\"@format_version\":\"1\",\"message\":\"Ikke oppdatert vinger-cache!\",\"logger_name\":\"loggerName\",\"thread_name\":\"org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1\",\"level\":\"INFO\",\"level_value\":20000,\"system\":\"System1\",\"application\":\"App1\",\"application_version\":\"1.17.0\"}\n")
+			insertChanJson <- []byte("{\"@timestamp\":\"2021-03-24T14:33:52.644+00:00\",\"@format_version\":\"1\",\"message\":\"Ikke oppdatert vinger-cache!\",\"logger_name\":\"loggerName\",\"thread_name\":\"org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1\",\"level\":\"INFO\",\"level_value\":20000,\"system\":\"System12\",\"application\":\"App1\",\"application_version\":\"1.17.0\"}\n")
 		}
-	}(insertChanJson2, "demoPod2")
+	}(insertChanJson2, "hei")
 	go insertIntoStoreJsonSystem(insertChanJson, "demoPod")
-	go insertIntoStoreJsonSystem(insertChanJson2, "demoPod2")
+	go insertIntoStoreJsonSystem(insertChanJson2, "Hei")
 	return nil
 }
 

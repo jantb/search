@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"hash/fnv"
-	"log"
 	"math"
 	"strings"
 	"time"
@@ -199,21 +197,4 @@ func moveAhead(v *gocui.View) {
 		v.SetOrigin(newOX, 0)
 		v.MoveCursor(forward, 0, false)
 	}
-}
-
-func getColorFromString(s string) func(a ...interface{}) string {
-	h := fnv.New32a()
-	_, err := h.Write([]byte(s))
-	if err != nil {
-		log.Fatal(err)
-	}
-	sum32 := h.Sum32()
-	var colors []func(a ...interface{}) string
-	colors = append(colors, color.New(color.FgBlue).Sprint)
-	colors = append(colors, color.New(color.FgCyan).Sprint)
-	colors = append(colors, color.New(color.FgRed).Sprint)
-	colors = append(colors, color.New(color.FgYellow).Sprint)
-	colors = append(colors, color.New(color.FgGreen).Sprint)
-	colors = append(colors, color.New(color.FgWhite).Sprint)
-	return colors[int(sum32)%len(colors)]
 }

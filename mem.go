@@ -140,6 +140,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now), count
 }
+
 func iterate(done <-chan struct{}) <-chan LogLine {
 	var channels []<-chan LogLine
 
@@ -157,6 +158,7 @@ func iterate(done <-chan struct{}) <-chan LogLine {
 
 	return out
 }
+
 func findTokens(tokens []string) ([]string, []string) {
 	var skipTokens []string
 	var restTokens []string
