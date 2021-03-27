@@ -29,7 +29,7 @@ func podCommandKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("podCommand", gocui.KeyEnter, gocui.ModNone, podCommandsEnter); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlA, gocui.ModNone, podCommandsCTRLEnter); err != nil {
+	if err := g.SetKeybinding("podCommand", gocui.KeyCtrlA, gocui.ModNone, podCommandsCTRLA); err != nil {
 		return err
 	}
 
@@ -118,7 +118,7 @@ func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func podCommandsCTRLEnter(g *gocui.Gui, v *gocui.View) error {
+func podCommandsCTRLA(g *gocui.Gui, v *gocui.View) error {
 
 	if len(selectedPods) > 0 {
 		for i, _ := range selectedPods {
@@ -131,6 +131,24 @@ func podCommandsCTRLEnter(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
+	return nil
+}
+
+func demo(g *gocui.Gui, v *gocui.View) error {
+	insertChanJson := make(chan []byte)
+	go func(insertChanJson chan []byte, podName string) {
+		for i := 0; i < 5; i++ {
+			insertChanJson <- []byte("{\"@timestamp\":\"2021-03-25T14:33:52.644+00:00\",\"@format_version\":\"1\",\"message\":\"2Ferdig oppdatert vinger-cache!\",\"logger_name\":\"loggerName\",\"thread_name\":\"org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1\",\"level\":\"INFO\",\"level_value\":20000,\"system\":\"System1\",\"application\":\"App1\",\"application_version\":\"1.17.0\"}\n")
+		}
+	}(insertChanJson, "demoPod")
+	insertChanJson2 := make(chan []byte)
+	go func(insertChanJson chan []byte, podName string) {
+		for i := 0; i < 5; i++ {
+			insertChanJson <- []byte("{\"@timestamp\":\"2021-03-24T14:33:52.644+00:00\",\"@format_version\":\"1\",\"message\":\"Ikke oppdatert vinger-cache!\",\"logger_name\":\"loggerName\",\"thread_name\":\"org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1\",\"level\":\"INFO\",\"level_value\":20000,\"system\":\"System1\",\"application\":\"App1\",\"application_version\":\"1.17.0\"}\n")
+		}
+	}(insertChanJson2, "demoPod2")
+	go insertIntoStoreJsonSystem(insertChanJson, "demoPod")
+	go insertIntoStoreJsonSystem(insertChanJson2, "demoPod2")
 	return nil
 }
 

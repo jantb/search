@@ -62,6 +62,10 @@ func keybindings(g *gocui.Gui) error {
 		return err
 	}
 	checkErr(err)
+
+	if err := g.SetKeybinding("", gocui.KeyCtrlK, gocui.ModNone, demo); err != nil {
+		return err
+	}
 	return nil
 }
 

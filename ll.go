@@ -3,10 +3,11 @@ package main
 import "sync"
 
 type LL struct {
-	Head *LNode
-	Tail *LNode
-	size int
-	m    sync.Mutex
+	System string
+	Head   *LNode
+	Tail   *LNode
+	size   int
+	m      sync.Mutex
 }
 
 type LNode struct {

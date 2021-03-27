@@ -2,30 +2,62 @@ package main
 
 import (
 	"go4.org/intern"
+	"runtime"
 	"strings"
 	"time"
 )
 
-var ll = LL{}
+var ll []LL
 var realOffset = 0
 
 func clear() {
-	ll = LL{}
+	ll = []LL{}
 }
 
 func removeLast() {
 	for mem, _, _ := memusage(); mem > 500; mem, _, _ = memusage() {
-		ll.RemoveLast()
+		for i := 0; i < 1000; i++ {
+			for i := range ll {
+				l := &ll[i]
+				l.RemoveLast()
+			}
+		}
+		runtime.GC()
 	}
 }
 
 func getLength() int {
-	return ll.GetSize()
+	c := 0
+	for x := range ll {
+		c += ll[x].GetSize()
+	}
+	return c
 }
 
 func insertIntoStoreByChan(insertChan chan LogLine) {
 	for line := range insertChan {
-		ll.Put(line)
+		found := false
+		for i := range ll {
+			l := &ll[i]
+			if l.System == line.getSystem() {
+				l.Put(line)
+				found = true
+				break
+			}
+		}
+		if !found {
+			ll = append(ll, LL{
+				System: line.getSystem(),
+			})
+			for i := range ll {
+				l := &ll[i]
+				if l.System == line.getSystem() {
+					l.Put(line)
+					break
+				}
+			}
+		}
+
 		bottomChan <- true
 	}
 }
@@ -57,7 +89,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	matchSet := make(map[*intern.Value]bool)
 	noMatchSet := make(map[*intern.Value]bool)
 
-	for line := range ll.Iterate(done) {
+	for line := range iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
@@ -93,7 +125,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	if command == "count" {
 		done := make(chan struct{})
-		for line := range ll.Iterate(done) {
+		for line := range iterate(done) {
 			if shouldSkipLine(skipTokens, line) {
 				continue
 			}
@@ -108,7 +140,23 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now), count
 }
+func iterate(done <-chan struct{}) <-chan LogLine {
+	var channels []<-chan LogLine
 
+	for i := range ll {
+		channels = append(channels, (&ll[i]).Iterate(done))
+	}
+
+	out := make(<-chan LogLine)
+	if len(channels) > 0 {
+		out = channels[0]
+		for _, channel := range channels[1:] {
+			out = Merge(out, channel)
+		}
+	}
+
+	return out
+}
 func findTokens(tokens []string) ([]string, []string) {
 	var skipTokens []string
 	var restTokens []string
