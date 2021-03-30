@@ -1,66 +1,43 @@
 package main
 
-import "sync"
+import (
+	"container/list"
+	"sync"
+)
 
 type LL struct {
 	System string
-	Head   *LNode
-	Tail   *LNode
-	size   int
+	l      *list.List
 	m      sync.Mutex
 }
 
-type LNode struct {
-	next *LNode
-	prev *LNode
-	val  LogLine
+func (ll *LL) Init() {
+	ll.l.Init()
 }
 
 func (ll *LL) GetSize() int {
 	ll.m.Lock()
 	defer ll.m.Unlock()
-	return ll.size
+	return ll.l.Len()
 }
 func (ll *LL) Put(line LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
-	lNode := &LNode{
-		next: nil,
-		prev: nil,
-		val:  line,
-	}
 
-	if ll.size == 0 {
-		ll.Head = lNode
-		ll.Tail = ll.Head
+	curr := ll.l.Front()
+
+	if curr == nil || curr.Value.(LogLine).Time <= line.Time {
+		ll.l.PushFront(line)
 	} else {
-		curr := ll.Head
-
-		if curr.val.Time <= line.Time {
-			head := ll.Head
-			head.prev = lNode
-			lNode.next = head
-			ll.Head = lNode
+		for curr != nil && curr.Value.(LogLine).Time > line.Time {
+			curr = curr.Next()
+		}
+		if curr != nil {
+			ll.l.InsertBefore(line, curr)
 		} else {
-			for curr != nil && curr.val.Time > line.Time {
-				curr = curr.next
-			}
-
-			if curr != nil {
-				prev := curr.prev
-				prev.next = lNode
-				lNode.next = curr
-				lNode.prev = prev
-			} else {
-				tail := ll.Tail
-				ll.Tail = lNode
-				tail.next = lNode
-				lNode.prev = tail
-			}
+			ll.l.PushBack(line)
 		}
 	}
-
-	ll.size++
 }
 
 func (ll *LL) Iterate(done <-chan struct{}) <-chan LogLine {
@@ -75,9 +52,9 @@ func (ll *LL) Iterate(done <-chan struct{}) <-chan LogLine {
 func (ll *LL) iterate(done <-chan struct{}, ch chan<- LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
-	for i := ll.Head; i != nil; i = i.next {
+	for i := ll.l.Front(); i != nil; i = i.Next() {
 		select {
-		case ch <- i.val:
+		case ch <- i.Value.(LogLine):
 		case <-done:
 			return
 		}
@@ -87,6 +64,5 @@ func (ll *LL) iterate(done <-chan struct{}, ch chan<- LogLine) {
 func (ll *LL) RemoveLast() {
 	ll.m.Lock()
 	defer ll.m.Unlock()
-	ll.Tail.prev.next = nil
-	ll.size--
+	ll.RemoveLast()
 }

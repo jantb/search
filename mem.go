@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/list"
 	"go4.org/intern"
 	"runtime"
 	"strings"
@@ -48,7 +49,9 @@ func insertIntoStoreByChan(insertChan chan LogLine) {
 		if !found {
 			ll = append(ll, LL{
 				System: line.getSystem(),
+				l:      &list.List{},
 			})
+
 			for i := range ll {
 				l := &ll[i]
 				if l.System == line.getSystem() {
