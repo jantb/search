@@ -29,7 +29,7 @@ func main() {
 	go insertIntoStoreByChan(insertLogLinesChan)
 	go insertIntoStoreJsonSystem(insertChanJson, "")
 	go readFromPipe(insertChan, insertChanJson)
-	go bottomRefresh()
+	go bottomRefresh(gui)
 	g.Cursor = true
 
 	g.SetManagerFunc(layout)
@@ -93,7 +93,7 @@ func checkErr(err error) {
 	os.Exit(1)
 }
 
-func bottomRefresh() {
+func bottomRefresh(gui *gocui.Gui) {
 	for {
 		select {
 		case <-bottomChan:
@@ -107,9 +107,12 @@ func bottomRefresh() {
 
 		}
 		if bottom.Load() {
-			v, e := gui.View("commands")
-			checkErr(e)
-			renderSearch(v, 0)
+			gui.Update(func(g *gocui.Gui) error {
+				v, e := gui.View("commands")
+				checkErr(e)
+				renderSearch(v, 0)
+				return nil
+			})
 		}
 	}
 }
