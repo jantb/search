@@ -53,12 +53,16 @@ func (ll *LL) iterate(done <-chan struct{}, ch chan<- LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
 	for i := ll.l.Front(); i != nil; i = i.Next() {
+		ll.m.Unlock()
 		select {
 		case ch <- i.Value.(LogLine):
 		case <-done:
+			ll.m.Lock()
 			return
 		}
+		ll.m.Lock()
 	}
+
 }
 
 func (ll *LL) RemoveLast() {

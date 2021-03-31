@@ -8,18 +8,18 @@ import (
 	"time"
 )
 
-var ll []LL
+var ll []*LL
 var realOffset = 0
 
 func clear() {
-	ll = []LL{}
+	ll = []*LL{}
 }
 
 func removeLast() {
 	for mem, _, _ := memusage(); mem > 500; mem, _, _ = memusage() {
 		for i := 0; i < 1000; i++ {
 			for i := range ll {
-				l := &ll[i]
+				l := ll[i]
 				l.RemoveLast()
 			}
 		}
@@ -39,7 +39,7 @@ func insertIntoStoreByChan(insertChan chan LogLine) {
 	for line := range insertChan {
 		found := false
 		for i := range ll {
-			l := &ll[i]
+			l := ll[i]
 			if l.System == line.getSystem() {
 				l.Put(line)
 				found = true
@@ -47,18 +47,12 @@ func insertIntoStoreByChan(insertChan chan LogLine) {
 			}
 		}
 		if !found {
-			ll = append(ll, LL{
+			elems := &LL{
 				System: line.getSystem(),
 				l:      &list.List{},
-			})
-
-			for i := range ll {
-				l := &ll[i]
-				if l.System == line.getSystem() {
-					l.Put(line)
-					break
-				}
 			}
+			ll = append(ll, elems)
+			elems.Put(line)
 		}
 
 		bottomChan <- true
@@ -148,7 +142,7 @@ func iterate(done <-chan struct{}) <-chan LogLine {
 	var channels []<-chan LogLine
 
 	for i := range ll {
-		channels = append(channels, (&ll[i]).Iterate(done))
+		channels = append(channels, (ll[i]).Iterate(done))
 	}
 
 	out := make(<-chan LogLine)
