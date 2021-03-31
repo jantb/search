@@ -12,6 +12,7 @@ var podCommandY = 0
 var podSearch = ""
 var pods = kube.Pods{}
 var selectedPods []kube.Items
+var quitChans []chan bool
 
 func podCommandKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("commands", gocui.KeyCtrlP, gocui.ModNone, activatePodCommands); err != nil {
@@ -109,9 +110,11 @@ func podCommandsEnter(g *gocui.Gui, v *gocui.View) error {
 	if len(selectedPods) > y {
 		name := selectedPods[podCommandY].Metadata.Name
 		insertChanJson := make(chan []byte)
-		go func(insertChanJson chan []byte, podName string) {
-			kube.GetPodLogsStreamFastJson(podName, insertChanJson)
-		}(insertChanJson, name)
+		quit := make(chan bool)
+		quitChans = append(quitChans, quit)
+		go func(insertChanJson chan []byte, podName string, quit chan bool) {
+			kube.GetPodLogsStreamFastJson(podName, insertChanJson, quit)
+		}(insertChanJson, name, quit)
 		go insertIntoStoreJsonSystem(insertChanJson, name)
 	}
 
@@ -123,10 +126,12 @@ func podCommandsCTRLA(g *gocui.Gui, v *gocui.View) error {
 	if len(selectedPods) > 0 {
 		for i, _ := range selectedPods {
 			insertChanJson := make(chan []byte)
+			quit := make(chan bool)
+			quitChans = append(quitChans, quit)
 			podName := selectedPods[i].Metadata.Name
-			go func(insertChanJson chan []byte, podName string) {
-				kube.GetPodLogsStreamFastJson(podName, insertChanJson)
-			}(insertChanJson, podName)
+			go func(insertChanJson chan []byte, podName string, quit chan bool) {
+				kube.GetPodLogsStreamFastJson(podName, insertChanJson, quit)
+			}(insertChanJson, podName, quit)
 			go insertIntoStoreJsonSystem(insertChanJson, podName)
 		}
 	}

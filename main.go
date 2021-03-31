@@ -44,6 +44,9 @@ func main() {
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
+	for i := range quitChans {
+		quitChans[i] <- true
+	}
 	return gocui.ErrQuit
 }
 

@@ -19,7 +19,7 @@ func GetPods() Pods {
 	return getPods
 }
 
-func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte) {
+func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte, quit chan bool) {
 	output, err := exec.Command("oc", "logs", podName, "--previous").CombinedOutput()
 	if err == nil {
 		for _, s := range strings.Split(string(output), "\n") {
@@ -29,12 +29,22 @@ func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte) {
 
 	command := exec.Command("oc", "logs", "-f", "--since=200h", podName)
 	pipe, err := command.StdoutPipe()
-	command.Start()
+	checkErr(err)
+	err = command.Start()
 	checkErr(err)
 	reader := bufio.NewReader(pipe)
 
 	var line []byte
 	for {
+		select {
+		case <-quit:
+			err = command.Process.Kill()
+			checkErr(err)
+			close(insertChanJson)
+			return
+		default:
+
+		}
 		line, err = reader.ReadBytes(byte('\n'))
 		if err != nil {
 			return
