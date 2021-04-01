@@ -23,8 +23,8 @@ func clear() {
 
 func removeLast() {
 	runtime.GC()
-	for mem, _, _ := memusage(); mem > 500; mem, _, _ = memusage() {
-		for i := 0; i < 1000; i++ {
+	for mem, _, _ := memusage(); mem > 400; mem, _, _ = memusage() {
+		for i := 0; i < 100000; i++ {
 			ll.RemoveLast()
 		}
 		runtime.GC()

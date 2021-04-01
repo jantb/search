@@ -6,8 +6,9 @@ import (
 )
 
 type LL struct {
-	l *list.List
-	m sync.Mutex
+	l       *list.List
+	m       sync.Mutex
+	systems []*list.Element
 }
 
 func (ll *LL) Init() {
@@ -19,23 +20,49 @@ func (ll *LL) GetSize() int {
 	defer ll.m.Unlock()
 	return ll.l.Len()
 }
+
 func (ll *LL) Put(line LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
 
 	curr := ll.l.Front()
-
-	if curr == nil || curr.Value.(LogLine).Time <= line.Time {
+	for i := range ll.systems {
+		if ll.systems[i].Value.(LogLine).system == line.system {
+			curr = ll.systems[i]
+			break
+		}
+	}
+	element := curr
+	if curr == nil {
 		ll.l.PushFront(line)
+	} else if curr.Value.(LogLine).Time <= line.Time {
+		for curr != nil && curr.Value.(LogLine).Time <= line.Time {
+			curr = curr.Prev()
+		}
+
+		if curr == nil {
+			element = ll.l.PushFront(line)
+		} else {
+			element = ll.l.InsertAfter(line, curr)
+		}
 	} else {
 		for curr != nil && curr.Value.(LogLine).Time > line.Time {
 			curr = curr.Next()
 		}
 		if curr != nil {
-			ll.l.InsertBefore(line, curr)
+			element = ll.l.InsertBefore(line, curr)
 		} else {
-			ll.l.PushBack(line)
+			element = ll.l.PushBack(line)
 		}
+	}
+	if element != nil {
+		for i := range ll.systems {
+			if ll.systems[i].Value.(LogLine).system == line.system {
+				ll.systems[i] = element
+				return
+			}
+		}
+		ll.systems = append(ll.systems, element)
 	}
 }
 
