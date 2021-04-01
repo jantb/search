@@ -3,9 +3,12 @@ package main
 import (
 	"container/list"
 	"go4.org/intern"
+	"runtime"
 	"strings"
 	"time"
 )
+
+type void struct{}
 
 var ll = LL{
 	l: &list.List{},
@@ -19,8 +22,12 @@ func clear() {
 }
 
 func removeLast() {
+	runtime.GC()
 	for mem, _, _ := memusage(); mem > 500; mem, _, _ = memusage() {
-		ll.RemoveLast()
+		for i := 0; i < 1000; i++ {
+			ll.RemoveLast()
+		}
+		runtime.GC()
 	}
 }
 
@@ -62,20 +69,18 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	done := make(chan struct{})
 
-	matchSet := make(map[*intern.Value]bool)
-	noMatchSet := make(map[*intern.Value]bool)
-
+	matchSet := make(map[*intern.Value]void)
+	//	restOfQuery := strings.Join(restTokens, " ")
 	for line := range ll.Iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
-		match, m, n := line.matchOrNot(restTokens, matchSet, noMatchSet)
-		for _, value := range m {
-			matchSet[value] = true
+		//	match := includeLine(query, line, restOfQuery)
+		match, m := line.matchOrNot(restTokens, matchSet)
+		if m != nil {
+			matchSet[m] = member
 		}
-		for _, value := range n {
-			noMatchSet[value] = true
-		}
+
 		if match {
 			if insertOffset == 0 {
 				ret = append(ret, line)
@@ -105,7 +110,8 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 			if shouldSkipLine(skipTokens, line) {
 				continue
 			}
-			match, _, _ := line.matchOrNot(restTokens, matchSet, noMatchSet)
+			match := line.matchOrNotCount(restTokens, matchSet)
+			//	match := includeLine(query, line, restOfQuery)
 			if match {
 				count++
 			}
@@ -115,6 +121,9 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	reverseLogline(ret)
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now), count
+}
+func includeLine(query string, line LogLine, restOfQuery string) bool {
+	return len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getSystem(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery)
 }
 
 func findTokens(tokens []string) ([]string, []string) {

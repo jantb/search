@@ -42,15 +42,15 @@ func (ll *LL) Put(line LogLine) {
 func (ll *LL) Iterate(done <-chan struct{}) <-chan LogLine {
 	out := make(chan LogLine)
 	go func(out chan LogLine) {
-		ll.m.Lock()
 		ll.iterate(done, out)
-		ll.m.Unlock()
 		close(out)
 	}(out)
 	return out
 }
 
 func (ll *LL) iterate(done <-chan struct{}, ch chan<- LogLine) {
+	ll.m.Lock()
+	defer ll.m.Unlock()
 	for i := ll.l.Front(); i != nil; i = i.Next() {
 		select {
 		case ch <- i.Value.(LogLine):
@@ -63,5 +63,5 @@ func (ll *LL) iterate(done <-chan struct{}, ch chan<- LogLine) {
 func (ll *LL) RemoveLast() {
 	ll.m.Lock()
 	defer ll.m.Unlock()
-	ll.RemoveLast()
+	ll.l.Remove(ll.l.Back())
 }
