@@ -6,9 +6,8 @@ import (
 )
 
 type LL struct {
-	System string
-	l      *list.List
-	m      sync.Mutex
+	l *list.List
+	m sync.Mutex
 }
 
 func (ll *LL) Init() {
@@ -42,27 +41,23 @@ func (ll *LL) Put(line LogLine) {
 
 func (ll *LL) Iterate(done <-chan struct{}) <-chan LogLine {
 	out := make(chan LogLine)
-	go func() {
+	go func(out chan LogLine) {
+		ll.m.Lock()
 		ll.iterate(done, out)
+		ll.m.Unlock()
 		close(out)
-	}()
+	}(out)
 	return out
 }
 
 func (ll *LL) iterate(done <-chan struct{}, ch chan<- LogLine) {
-	ll.m.Lock()
-	defer ll.m.Unlock()
 	for i := ll.l.Front(); i != nil; i = i.Next() {
-		ll.m.Unlock()
 		select {
 		case ch <- i.Value.(LogLine):
 		case <-done:
-			ll.m.Lock()
 			return
 		}
-		ll.m.Lock()
 	}
-
 }
 
 func (ll *LL) RemoveLast() {

@@ -3,58 +3,37 @@ package main
 import (
 	"container/list"
 	"go4.org/intern"
-	"runtime"
 	"strings"
 	"time"
 )
 
-var ll []*LL
+var ll = LL{
+	l: &list.List{},
+}
 var realOffset = 0
 
 func clear() {
-	ll = []*LL{}
+	ll = LL{
+		l: &list.List{},
+	}
 }
 
 func removeLast() {
 	for mem, _, _ := memusage(); mem > 500; mem, _, _ = memusage() {
-		for i := 0; i < 1000; i++ {
-			for i := range ll {
-				l := ll[i]
-				l.RemoveLast()
-			}
-		}
-		runtime.GC()
+		ll.RemoveLast()
 	}
 }
 
 func getLength() int {
-	c := 0
-	for x := range ll {
-		c += ll[x].GetSize()
+	if ll.l == nil {
+		return 0
 	}
-	return c
+	return ll.GetSize()
 }
 
 func insertIntoStoreByChan(insertChan chan LogLine) {
 	for line := range insertChan {
-		found := false
-		for i := range ll {
-			l := ll[i]
-			if l.System == line.getSystem() {
-				l.Put(line)
-				found = true
-				break
-			}
-		}
-		if !found {
-			elems := &LL{
-				System: line.getSystem(),
-				l:      &list.List{},
-			}
-			ll = append(ll, elems)
-			elems.Put(line)
-		}
-
+		ll.Put(line)
 		bottomChan <- true
 	}
 }
@@ -86,7 +65,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	matchSet := make(map[*intern.Value]bool)
 	noMatchSet := make(map[*intern.Value]bool)
 
-	for line := range iterate(done) {
+	for line := range ll.Iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
@@ -122,7 +101,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	if command == "count" {
 		done := make(chan struct{})
-		for line := range iterate(done) {
+		for line := range ll.Iterate(done) {
 			if shouldSkipLine(skipTokens, line) {
 				continue
 			}
@@ -136,24 +115,6 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	reverseLogline(ret)
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now), count
-}
-
-func iterate(done <-chan struct{}) <-chan LogLine {
-	var channels []<-chan LogLine
-
-	for i := range ll {
-		channels = append(channels, (ll[i]).Iterate(done))
-	}
-
-	out := make(<-chan LogLine)
-	if len(channels) > 0 {
-		out = channels[0]
-		for _, channel := range channels[1:] {
-			out = Merge(out, channel)
-		}
-	}
-
-	return out
 }
 
 func findTokens(tokens []string) ([]string, []string) {
