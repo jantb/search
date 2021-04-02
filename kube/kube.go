@@ -35,16 +35,16 @@ func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte, quit c
 	reader := bufio.NewReader(pipe)
 
 	var line []byte
-	for {
+
+	go func(quit chan bool, command *exec.Cmd) {
 		select {
 		case <-quit:
 			err = command.Process.Kill()
 			checkErr(err)
-			close(insertChanJson)
 			return
-		default:
-
 		}
+	}(quit, command)
+	for {
 		line, err = reader.ReadBytes(byte('\n'))
 		if err != nil {
 			return
