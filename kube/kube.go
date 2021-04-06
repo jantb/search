@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 func GetPods() Pods {
@@ -28,6 +29,7 @@ func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte, quit c
 	}
 
 	command := exec.Command("oc", "logs", "-f", "--since=200h", podName)
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	pipe, err := command.StdoutPipe()
 	checkErr(err)
 	err = command.Start()
@@ -39,7 +41,7 @@ func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte, quit c
 	go func(quit chan bool, command *exec.Cmd) {
 		select {
 		case <-quit:
-			err = command.Process.Kill()
+			err = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
 			checkErr(err)
 			return
 		}
