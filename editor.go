@@ -106,7 +106,7 @@ func renderSearch(v *gocui.View, offset int) {
 			for _, value := range l {
 				buffer := strings.TrimSpace(v.Buffer())
 				levelFunc := printWhite
-				switch value.getLevel() {
+				switch value.GetLevel() {
 				case "ERROR":
 					levelFunc = printRed
 				case "WARN":
@@ -116,7 +116,7 @@ func renderSearch(v *gocui.View, offset int) {
 				case "DEBUG":
 					levelFunc = printWhite
 				}
-				line := fmt.Sprintf("%s %s %s %s", printCyan(value.getTime().Format("2006-01-02T15:04:05")), printYellow(value.getSystem()), levelFunc(value.getLevel()), highlight(buffer, strings.TrimSpace(value.getBody())))
+				line := fmt.Sprintf("%s %s %s %s", printCyan(value.GetTime().Format("2006-01-02T15:04:05")), printYellow(value.GetSystem()), levelFunc(value.GetLevel()), highlight(buffer, strings.TrimSpace(value.GetBody())))
 				lines := strings.Split(line, "\n")
 				for _, value := range split([]rune(strings.TrimSpace(lines[0])), len(lines[0])-len(Strip(lines[0]))+x-1) {
 					fmt.Fprintln(logs, string(value))
@@ -139,7 +139,7 @@ func renderSearch(v *gocui.View, offset int) {
 			}
 			_, sy := logs.Size()
 			if bottom.Load() && len(l) > 0 {
-				lastMessageDuration := time.Now().Sub(l[len(l)-1].getTime())
+				lastMessageDuration := time.Now().Sub(l[len(l)-1].GetTime())
 				logs.SetOrigin(0, len(logs.BufferLines())-sy)
 				mem, totalStop, g := memusage()
 				if mem > 500 {

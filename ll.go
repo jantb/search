@@ -2,6 +2,7 @@ package main
 
 import (
 	"container/list"
+	"github.com/jantb/search/logline"
 	"sync"
 )
 
@@ -21,13 +22,13 @@ func (ll *LL) GetSize() int {
 	return ll.l.Len()
 }
 
-func (ll *LL) Put(line LogLine) {
+func (ll *LL) Put(line logline.LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
 
 	curr := ll.l.Front()
 	for i := range ll.systems {
-		if ll.systems[i].Value.(LogLine).system == line.system {
+		if ll.systems[i].Value.(logline.LogLine).System == line.System {
 			curr = ll.systems[i]
 			break
 		}
@@ -35,8 +36,8 @@ func (ll *LL) Put(line LogLine) {
 	element := curr
 	if curr == nil {
 		ll.l.PushFront(line)
-	} else if curr.Value.(LogLine).Time <= line.Time {
-		for curr != nil && curr.Value.(LogLine).Time <= line.Time {
+	} else if curr.Value.(logline.LogLine).Time <= line.Time {
+		for curr != nil && curr.Value.(logline.LogLine).Time <= line.Time {
 			curr = curr.Prev()
 		}
 
@@ -46,7 +47,7 @@ func (ll *LL) Put(line LogLine) {
 			element = ll.l.InsertAfter(line, curr)
 		}
 	} else {
-		for curr != nil && curr.Value.(LogLine).Time > line.Time {
+		for curr != nil && curr.Value.(logline.LogLine).Time > line.Time {
 			curr = curr.Next()
 		}
 		if curr != nil {
@@ -57,7 +58,7 @@ func (ll *LL) Put(line LogLine) {
 	}
 	if element != nil {
 		for i := range ll.systems {
-			if ll.systems[i].Value.(LogLine).system == line.system {
+			if ll.systems[i].Value.(logline.LogLine).System == line.System {
 				ll.systems[i] = element
 				return
 			}
@@ -66,21 +67,21 @@ func (ll *LL) Put(line LogLine) {
 	}
 }
 
-func (ll *LL) Iterate(done <-chan struct{}) <-chan LogLine {
-	out := make(chan LogLine)
-	go func(out chan LogLine) {
+func (ll *LL) Iterate(done <-chan struct{}) <-chan logline.LogLine {
+	out := make(chan logline.LogLine)
+	go func(out chan logline.LogLine) {
 		ll.iterate(done, out)
 		close(out)
 	}(out)
 	return out
 }
 
-func (ll *LL) iterate(done <-chan struct{}, ch chan<- LogLine) {
+func (ll *LL) iterate(done <-chan struct{}, ch chan<- logline.LogLine) {
 	ll.m.Lock()
 	defer ll.m.Unlock()
 	for i := ll.l.Front(); i != nil; i = i.Next() {
 		select {
-		case ch <- i.Value.(LogLine):
+		case ch <- i.Value.(logline.LogLine):
 		case <-done:
 			return
 		}

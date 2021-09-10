@@ -1,13 +1,14 @@
 package main
 
 import (
+	"github.com/jantb/search/logline"
 	"github.com/valyala/fastjson"
 	"go4.org/intern"
 	"strings"
 	"time"
 )
 
-func parseLine(line string, loglines []LogLine) (LogLine, bool) {
+func parseLine(line string, loglines []logline.LogLine) (logline.LogLine, bool) {
 	for _, format := range formats {
 		for _, regex := range format.Regex {
 			match := regex.RegexCompiled.Match([]byte(line))
@@ -23,30 +24,30 @@ func parseLine(line string, loglines []LogLine) (LogLine, bool) {
 						continue
 					}
 					l := loglines[len(loglines)-1]
-					l.setBody(l.getBody() + "\n" + md["body"])
-					logLine := LogLine{}
-					logLine.setBody(line)
+					l.SetBody(l.GetBody() + "\n" + md["body"])
+					logLine := logline.LogLine{}
+					logLine.SetBody(line)
 					return logLine, false
 				}
 				timestamp := toMillis(parseTimestamp(regex, md["timestamp"]))
-				logLine := LogLine{
+				logLine := logline.LogLine{
 					Time:   timestamp,
-					system: intern.GetByString(md["system"]),
+					System: intern.GetByString(md["system"]),
 				}
-				logLine.setLevel(md["level"])
-				logLine.setSystem(md["system"])
-				logLine.setBody(md["body"])
+				logLine.SetLevel(md["level"])
+				logLine.SetSystem(md["system"])
+				logLine.SetBody(md["body"])
 				return logLine, true
 
 			}
 		}
 	}
-	logLine := LogLine{}
-	logLine.setBody(line)
+	logLine := logline.LogLine{}
+	logLine.SetBody(line)
 	return logLine, false
 }
 
-func parseLineJsonFastJson(line []byte) LogLine {
+func parseLineJsonFastJson(line []byte) logline.LogLine {
 	body := fastjson.GetString(line, "message")
 	stack := fastjson.GetString(line, "stack_trace")
 	if len(stack) > 0 {
@@ -56,12 +57,12 @@ func parseLineJsonFastJson(line []byte) LogLine {
 	if len(timestamp) == 0 {
 		timestamp = fastjson.GetString(line, "timestamp")
 	}
-	l := LogLine{
+	l := logline.LogLine{
 		Time: toMillis(parseTimestampJson(timestamp)),
 	}
-	l.setSystem(fastjson.GetString(line, "HOSTNAME"))
-	l.setLevel(fastjson.GetString(line, "level"))
-	l.setBody(body)
+	l.SetSystem(fastjson.GetString(line, "HOSTNAME"))
+	l.SetLevel(fastjson.GetString(line, "level"))
+	l.SetBody(body)
 	return l
 }
 
@@ -95,7 +96,7 @@ func insertIntoStore(insertChan chan string) {
 	for {
 		length := len(insertChan)
 		if length > 0 {
-			var logLines []LogLine
+			var logLines []logline.LogLine
 			for i := 0; i < length; i++ {
 				line := <-insertChan
 				logLine, found := parseLine(line, logLines)
@@ -117,7 +118,7 @@ func insertIntoStore(insertChan chan string) {
 func insertIntoStoreJsonSystem(insertChan chan []byte, system string) {
 	for line := range insertChan {
 		logLine := parseLineJsonFastJson(line)
-		logLine.setSystem(system)
+		logLine.SetSystem(system)
 		insertLogLinesChan <- logLine
 	}
 }

@@ -2,13 +2,12 @@ package main
 
 import (
 	"container/list"
+	"github.com/jantb/search/logline"
 	"go4.org/intern"
 	"runtime"
 	"strings"
 	"time"
 )
-
-type void struct{}
 
 var ll = LL{
 	l: &list.List{},
@@ -38,14 +37,14 @@ func getLength() int {
 	return ll.GetSize()
 }
 
-func insertIntoStoreByChan(insertChan chan LogLine) {
+func insertIntoStoreByChan(insertChan chan logline.LogLine) {
 	for line := range insertChan {
 		ll.Put(line)
 		bottomChan <- true
 	}
 }
 
-func search(input string, limit int, offset int) (ret []LogLine, t time.Duration, count int) {
+func search(input string, limit int, offset int) (ret []logline.LogLine, t time.Duration, count int) {
 	now := time.Now()
 	input = strings.TrimSpace(input)
 	split := strings.Split(input, "|")
@@ -60,7 +59,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	setOffset(offset)
 	insertOffset := realOffset
 	if getLength() == 0 {
-		return []LogLine{}, time.Now().Sub(now), 0
+		return []logline.LogLine{}, time.Now().Sub(now), 0
 	}
 
 	skipTokens, restTokens := findTokens(tokens)
@@ -69,16 +68,16 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 
 	done := make(chan struct{})
 
-	matchSet := make(map[*intern.Value]void)
+	matchSet := make(map[*intern.Value]logline.Void)
 	//	restOfQuery := strings.Join(restTokens, " ")
 	for line := range ll.Iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
 		//	match := includeLine(query, line, restOfQuery)
-		match, m := line.matchOrNot(restTokens, matchSet)
+		match, m := line.MatchOrNot(restTokens, matchSet)
 		if m != nil {
-			matchSet[m] = member
+			matchSet[m] = logline.Member
 		}
 
 		if match {
@@ -96,11 +95,11 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 	}
 	close(done)
 	for !reachedTop && len(ret) != limit+realOffset {
-		ret = append(ret, LogLine{
-			level:  intern.GetByString(""),
-			system: intern.GetByString(""),
+		ret = append(ret, logline.LogLine{
+			Level:  intern.GetByString(""),
+			System: intern.GetByString(""),
 			Time:   0,
-			body:   nil,
+			Body:   nil,
 		})
 	}
 
@@ -110,7 +109,7 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 			if shouldSkipLine(skipTokens, line) {
 				continue
 			}
-			match := line.matchOrNotCount(restTokens, matchSet)
+			match := line.MatchOrNotCount(restTokens, matchSet)
 			//	match := includeLine(query, line, restOfQuery)
 			if match {
 				count++
@@ -118,12 +117,12 @@ func search(input string, limit int, offset int) (ret []LogLine, t time.Duration
 		}
 	}
 
-	reverseLogline(ret)
+	logline.ReverseLogline(ret)
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now), count
 }
-func includeLine(query string, line LogLine, restOfQuery string) bool {
-	return len(query) == 0 || strings.Contains(line.getLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getSystem(), strings.ToUpper(restOfQuery)) || strings.Contains(line.getBody(), restOfQuery)
+func includeLine(query string, line logline.LogLine, restOfQuery string) bool {
+	return len(query) == 0 || strings.Contains(line.GetLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.GetSystem(), strings.ToUpper(restOfQuery)) || strings.Contains(line.GetBody(), restOfQuery)
 }
 
 func findTokens(tokens []string) ([]string, []string) {
@@ -139,11 +138,11 @@ func findTokens(tokens []string) ([]string, []string) {
 	return skipTokens, restTokens
 }
 
-func shouldSkipLine(tokens []string, line LogLine) bool {
+func shouldSkipLine(tokens []string, line logline.LogLine) bool {
 	skip := false
 	for _, token := range tokens {
 		if strings.HasPrefix(token, "system=") {
-			if !strings.Contains(strings.ToUpper(line.getSystem()), strings.ToUpper(strings.Split(token, "=")[1])) {
+			if !strings.Contains(strings.ToUpper(line.GetSystem()), strings.ToUpper(strings.Split(token, "=")[1])) {
 				skip = true
 				break
 			}
@@ -151,7 +150,7 @@ func shouldSkipLine(tokens []string, line LogLine) bool {
 		}
 
 		if strings.HasPrefix(token, "system!=") {
-			if strings.Contains(strings.ToUpper(line.getSystem()), strings.ToUpper(strings.Split(token, "!=")[1])) {
+			if strings.Contains(strings.ToUpper(line.GetSystem()), strings.ToUpper(strings.Split(token, "!=")[1])) {
 				skip = true
 				break
 			}
@@ -159,7 +158,7 @@ func shouldSkipLine(tokens []string, line LogLine) bool {
 		}
 
 		if strings.HasPrefix(token, "level=") {
-			if line.getLevel() != strings.ToUpper(strings.Split(token, "=")[1]) {
+			if line.GetLevel() != strings.ToUpper(strings.Split(token, "=")[1]) {
 				skip = true
 				break
 			}
@@ -167,7 +166,7 @@ func shouldSkipLine(tokens []string, line LogLine) bool {
 		}
 
 		if strings.HasPrefix(token, "level!=") {
-			if line.getLevel() == strings.ToUpper(strings.Split(token, "!=")[1]) {
+			if line.GetLevel() == strings.ToUpper(strings.Split(token, "!=")[1]) {
 				skip = true
 				break
 			}
@@ -175,7 +174,7 @@ func shouldSkipLine(tokens []string, line LogLine) bool {
 		}
 
 		if strings.HasPrefix(token, "!") {
-			if strings.Contains(line.getBody(), token[1:]) {
+			if strings.Contains(line.GetBody(), token[1:]) {
 				skip = true
 				break
 			}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jantb/search/logline"
 	"github.com/jroimartin/gocui"
 	"go.uber.org/atomic"
 	"log"
@@ -12,7 +13,7 @@ import (
 var formats Formats
 var gui *gocui.Gui
 var bottom atomic.Bool
-var insertLogLinesChan = make(chan LogLine)
+var insertLogLinesChan = make(chan logline.LogLine)
 var insertChanJson = make(chan []byte)
 var insertChan = make(chan string)
 var bottomChan = make(chan bool)

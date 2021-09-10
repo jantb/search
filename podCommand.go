@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jantb/search/kafka"
 	"github.com/jantb/search/kube"
 	"github.com/jroimartin/gocui"
 	"strings"
@@ -139,20 +140,7 @@ func podCommandsCTRLA(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 func demo(g *gocui.Gui, v *gocui.View) error {
-	insertChanJson := make(chan []byte)
-	go func(insertChanJson chan []byte, podName string) {
-		for i := 0; i < 1000000; i++ {
-			insertChanJson <- []byte(fmt.Sprintf("{\"@timestamp\":\"2021-03-25T14:33:52.644+00:00\",\"@format_version\":\"1\",\"message\":\"2Ferdig oppdatert vinger-cache!%d\",\"logger_name\":\"loggerName\",\"thread_name\":\"org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1\",\"level\":\"INFO\",\"level_value\":20000,\"system\":\"System1\",\"application\":\"App1\",\"application_version\":\"1.17.0\"}\n", i))
-		}
-	}(insertChanJson, "demoPod")
-	insertChanJson2 := make(chan []byte)
-	go func(insertChanJson chan []byte, podName string) {
-		for i := 0; i < 1000000; i++ {
-			insertChanJson <- []byte(fmt.Sprintf("{\"@timestamp\":\"2021-03-24T14:33:52.644+00:00\",\"@format_version\":\"1\",\"message\":\"2Ferdig oppdatert vinger-cache!%d\",\"logger_name\":\"loggerName\",\"thread_name\":\"org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1\",\"level\":\"INFO\",\"level_value\":20000,\"system\":\"System1\",\"application\":\"App1\",\"application_version\":\"1.17.0\"}\n", i))
-		}
-	}(insertChanJson2, "hei")
-	go insertIntoStoreJsonSystem(insertChanJson, "demoPod")
-	go insertIntoStoreJsonSystem(insertChanJson2, "Hei")
+	go kafka.KafkaRead(insertLogLinesChan)
 	return nil
 }
 
