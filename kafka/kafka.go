@@ -90,8 +90,4 @@ func KafkaRead(insertLogLinesChan chan logline.LogLine) {
 			}
 		}(p)
 	}
-	for k := range m {
-
-		fmt.Println(k)
-	}
 }
