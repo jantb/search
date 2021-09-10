@@ -10,17 +10,18 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func KafkaRead(insertLogLinesChan chan logline.LogLine) {
 	env, b := os.LookupEnv("KAFKA")
 	var cons string
 	if b {
-		cons = env
+		cons = strings.Split(env, ",")[0]
 	} else {
-		cons = "localhost"
+		cons = "localhost:9092"
 	}
-	conn, err := kafka.Dial("tcp", fmt.Sprintf("%s:9092", cons))
+	conn, err := kafka.Dial("tcp", fmt.Sprintf("%s", cons))
 	if err != nil {
 		panic(err.Error())
 	}
@@ -46,10 +47,16 @@ func KafkaRead(insertLogLinesChan chan logline.LogLine) {
 	for _, p := range partitions {
 		m[p.Topic] = struct{}{}
 
-		func(p kafka.Partition) {
-			// make a new reader that consumes from topic-A, partition 0, at offset 42
+		go func(p kafka.Partition) {
+			env, b := os.LookupEnv("KAFKA")
+			var cons []string
+			if b {
+				cons = strings.Split(env, ",")
+			} else {
+				cons = []string{"localhost:9092"}
+			}
 			r := kafka.NewReader(kafka.ReaderConfig{
-				Brokers:   []string{"localhost:9092"},
+				Brokers:   cons,
 				Topic:     p.Topic,
 				Partition: p.ID,
 				MinBytes:  0,    // 10KB
