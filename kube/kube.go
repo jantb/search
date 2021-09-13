@@ -42,6 +42,7 @@ func GetPodLogsStreamFastJson(podName string, insertChanJson chan []byte, quit c
 		select {
 		case <-quit:
 			_ = command.Process.Kill()
+			_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
 			return
 		}
 	}(quit, command)

@@ -47,8 +47,8 @@ func main() {
 func quit(g *gocui.Gui, v *gocui.View) error {
 	for i := range quitChans {
 		quitChans[i] <- true
-		fmt.Fprintln(v, fmt.Sprintf("Quitting %d", i))
 	}
+	time.Sleep(500 * time.Millisecond)
 	return gocui.ErrQuit
 }
 
