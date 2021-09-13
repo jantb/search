@@ -7,9 +7,7 @@ import (
 	"github.com/jantb/search/logline"
 	"github.com/segmentio/kafka-go"
 	"log"
-	"net"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -26,16 +24,6 @@ func KafkaRead(insertLogLinesChan chan logline.LogLine) {
 		panic(err.Error())
 	}
 	defer conn.Close()
-	controller, err := conn.Controller()
-	if err != nil {
-		panic(err.Error())
-	}
-	var connLeader *kafka.Conn
-	connLeader, err = kafka.Dial("tcp", net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port)))
-	if err != nil {
-		panic(err.Error())
-	}
-	defer connLeader.Close()
 
 	partitions, err := conn.ReadPartitions()
 	if err != nil {
