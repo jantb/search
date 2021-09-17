@@ -42,7 +42,8 @@ func insertIntoStoreByChan(insertChan chan logline.LogLine) {
 	file, e := os.ReadFile(".ignoreSearch")
 	var tokens []string
 	if e == nil {
-		tokens = strings.Split(string(file), " ")
+		query := string(file)
+		tokens, _ = findTokens(strings.Split(strings.TrimSpace(query), " "))
 	}
 
 	for line := range insertChan {
