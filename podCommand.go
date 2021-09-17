@@ -140,7 +140,10 @@ func podCommandsCTRLA(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 func demo(g *gocui.Gui, v *gocui.View) error {
-	go kafka.KafkaRead(insertLogLinesChan)
+	quit := make(chan bool)
+	quitChans = append(quitChans, quit)
+
+	go kafka.KafkaRead(insertLogLinesChan, quit)
 	return nil
 }
 

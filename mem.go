@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"github.com/jantb/search/logline"
 	"go4.org/intern"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -38,7 +39,16 @@ func getLength() int {
 }
 
 func insertIntoStoreByChan(insertChan chan logline.LogLine) {
+	file, e := os.ReadFile(".ignoreSearch")
+	var tokens []string
+	if e == nil {
+		tokens = strings.Split(string(file), " ")
+	}
+
 	for line := range insertChan {
+		if shouldSkipLine(tokens, line) {
+			continue
+		}
 		ll.Put(line)
 		bottomChan <- true
 	}

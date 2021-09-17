@@ -1,94 +1,74 @@
 package kafka
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Shopify/sarama"
 	"github.com/jantb/search/logline"
-	"github.com/segmentio/kafka-go"
-	"log"
-	"net"
 	"os"
-	"strconv"
 	"strings"
 )
 
-func KafkaRead(insertLogLinesChan chan logline.LogLine) {
+func KafkaRead(insertLogLinesChan chan logline.LogLine, quit chan bool) {
 	env, b := os.LookupEnv("KAFKA")
-	var cons string
+	var cons []string
 	if b {
-		cons = strings.Split(env, ",")[0]
+		cons = strings.Split(env, ",")
 	} else {
-		cons = "localhost:9092"
+		cons = []string{"localhost:9092"}
 	}
-	conn, err := kafka.Dial("tcp", fmt.Sprintf("%s", cons))
+
+	consumer, err := sarama.NewConsumer(cons, sarama.NewConfig())
 	if err != nil {
-		panic(err.Error())
+
 	}
-	defer conn.Close()
+	//defer consumer.Close()
 
-	controller, err := conn.Controller()
-	if err != nil {
-		panic(err.Error())
-	}
-	var connLeader *kafka.Conn
-	connLeader, err = kafka.Dial("tcp", net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port)))
-	if err != nil {
-		panic(err.Error())
-	}
-	defer connLeader.Close()
+	strings, err := consumer.Topics()
+	for _, topic := range strings {
+		partitions, err := consumer.Partitions(topic)
+		if err != nil {
 
-	partitions, err := connLeader.ReadPartitions()
-	if err != nil {
-		panic(err.Error())
-	}
+		}
+		var consumers []sarama.PartitionConsumer
+		for _, partition := range partitions {
 
-	m := map[string]struct{}{}
+			consumePartition, err := consumer.ConsumePartition(topic, partition, 0)
+			//defer consumePartition.Close()
+			if err != nil {
 
-	for _, p := range partitions {
-		m[p.Topic] = struct{}{}
-
-		go func(p kafka.Partition) {
-			env, b := os.LookupEnv("KAFKA")
-			var cons []string
-			if b {
-				cons = strings.Split(env, ",")
-			} else {
-				cons = []string{"localhost:9092"}
 			}
-			r := kafka.NewReader(kafka.ReaderConfig{
-				Brokers:   cons,
-				Topic:     p.Topic,
-				Partition: p.ID,
-				MinBytes:  0,    // 10KB
-				MaxBytes:  10e6, // 10MB
-			})
-			r.SetOffset(0)
+			consumers = append(consumers, consumePartition)
+			messages := consumePartition.Messages()
+			go func(messages <-chan *sarama.ConsumerMessage, topic string, partition int32) {
+				for message := range messages {
+					l := logline.LogLine{
+						Time: message.Timestamp.UnixNano() / 1000000,
+					}
+					l.SetSystem(fmt.Sprintf("%s %d %d", topic, partition, message.Offset))
+					l.SetLevel(string(message.Key))
+					indent, err := json.MarshalIndent(string(message.Value), "", "    ")
+					if err != nil {
+						l.SetBody(string(message.Value))
+					} else {
+						l.SetBody(string(indent))
+					}
 
-			for {
-				m, err := r.ReadMessage(context.Background())
-				if err != nil {
-					break
+					insertLogLinesChan <- l
 				}
-				l := logline.LogLine{
-					Time: m.Time.UnixNano() / 1000000,
-				}
-				l.SetSystem(fmt.Sprintf("%s %d %d", m.Topic, m.Partition, m.Offset))
-				l.SetLevel(string(m.Key))
-				indent, err := json.MarshalIndent(string(m.Value), "", "    ")
-				if err != nil {
-					l.SetBody(string(m.Value))
-				} else {
-					l.SetBody(string(indent))
+			}(messages, topic, partition)
+		}
+		go func(quit chan bool, consumer sarama.Consumer, consumers []sarama.PartitionConsumer) {
+			select {
+			case <-quit:
+				for _, partitionConsumer := range consumers {
+					_ = partitionConsumer.Close()
 				}
 
-				insertLogLinesChan <- l
-				//	fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+				_ = consumer.Close()
+				return
 			}
-
-			if err := r.Close(); err != nil {
-				log.Fatal("failed to close reader:", err)
-			}
-		}(p)
+		}(quit, consumer, consumers)
 	}
+
 }
