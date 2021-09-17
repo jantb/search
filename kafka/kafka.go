@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/jantb/search/logline"
+	"log"
 	"os"
 	"strings"
 )
@@ -33,10 +34,13 @@ func KafkaRead(insertLogLinesChan chan logline.LogLine, quit chan bool) {
 		var consumers []sarama.PartitionConsumer
 		for _, partition := range partitions {
 
-			consumePartition, err := consumer.ConsumePartition(topic, partition, 0)
+			consumePartition, err := consumer.ConsumePartition(topic, partition, sarama.OffsetOldest)
 			//defer consumePartition.Close()
 			if err != nil {
-
+				log.Println(topic)
+				log.Println(partition)
+				log.Println(err)
+				continue
 			}
 			consumers = append(consumers, consumePartition)
 			messages := consumePartition.Messages()
