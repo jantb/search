@@ -26,6 +26,8 @@ func KafkaRead(insertLogLinesChan chan logline.LogLine, quit chan bool) {
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 	consumer, err := sarama.NewConsumer(cons, config)
 	if err != nil {
+
+		log.Println(fmt.Sprintf("Trying to connect to:%v", env))
 		log.Println(err)
 	}
 	//defer consumer.Close()
