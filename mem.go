@@ -47,7 +47,7 @@ func insertIntoStoreByChan(insertChan chan logline.LogLine) {
 	}
 
 	for line := range insertChan {
-		if shouldSkipLine(tokens, line) {
+		if line.GetLevel() != "error" && shouldSkipLine(tokens, line) {
 			continue
 		}
 		ll.Put(line)
