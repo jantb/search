@@ -85,8 +85,8 @@ func search(input string, limit int, offset int) (ret []logline.LogLine, t time.
 			continue
 		}
 		match, m := line.MatchOrNot(restTokens, matchSet)
-		if m != nil {
-			matchSet[m] = logline.Member
+		for _, value := range m {
+			matchSet[value] = logline.Member
 		}
 
 		if match {
@@ -128,9 +128,6 @@ func search(input string, limit int, offset int) (ret []logline.LogLine, t time.
 	logline.ReverseLogline(ret)
 	bottom.Store(realOffset == 0)
 	return ret, time.Now().Sub(now), count
-}
-func includeLine(query string, line logline.LogLine, restOfQuery string) bool {
-	return len(query) == 0 || strings.Contains(line.GetLevel(), strings.ToUpper(restOfQuery)) || strings.Contains(line.GetSystem(), strings.ToUpper(restOfQuery)) || strings.Contains(line.GetBody(), restOfQuery)
 }
 
 func findTokens(tokens []string) ([]string, []string) {

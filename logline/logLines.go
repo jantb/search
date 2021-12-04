@@ -27,27 +27,35 @@ type LogLine struct {
 func (l LogLine) GetTime() time.Time {
 	return time.Unix(0, l.Time*1000000)
 }
-func (l LogLine) MatchOrNot(query []string, matches map[*intern.Value]Void) (bool, *intern.Value) {
+func (l LogLine) MatchOrNot(query []string, matches map[*intern.Value]Void) (bool, []*intern.Value) {
 
+	var ret []*intern.Value
 	if len(query) == 0 {
-		return true, nil
+		return true, ret
 	}
 	for k := range matches {
 		_, ok := l.Ids[k]
 		if ok {
-			return true, nil
+			return true, ret
 		}
 	}
 
-	for value := range l.Ids {
-		val := value.Get().(string)
-		for _, s := range query {
-			if strings.Contains(val, s) {
-				return true, value
+	for _, q := range query {
+		found := false
+		for value := range l.Ids {
+			val := value.Get().(string)
+			if strings.Contains(val, q) {
+				ret = append(ret, value)
+				found = true
+				break
 			}
 		}
+		if !found {
+			return false, []*intern.Value{}
+		}
 	}
-	return false, nil
+
+	return true, ret
 }
 
 func (l LogLine) MatchOrNotCount(query []string, matches map[*intern.Value]Void) bool {
