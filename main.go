@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-var formats Formats
 var gui *gocui.Gui
 var bottom atomic.Bool
 var insertLogLinesChan = make(chan logline.LogLine)
@@ -26,7 +25,6 @@ func main() {
 	gui = g
 	defer g.Close()
 
-	go insertIntoStore(insertChan)
 	go insertIntoStoreByChan(insertLogLinesChan)
 	go insertIntoStoreJsonSystem(insertChanJson, "")
 	go readFromPipe(insertChan, insertChanJson)

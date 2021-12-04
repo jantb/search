@@ -17,7 +17,6 @@ func readFromPipe(insertChan chan string, insertChanJson chan []byte) {
 	if fi.Mode()&os.ModeNamedPipe == 0 {
 		return
 	}
-	readFormats()
 	reader := bufio.NewReader(os.Stdin)
 
 	for {

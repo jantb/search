@@ -80,12 +80,10 @@ func search(input string, limit int, offset int) (ret []logline.LogLine, t time.
 	done := make(chan struct{})
 
 	matchSet := make(map[*intern.Value]logline.Void)
-	//	restOfQuery := strings.Join(restTokens, " ")
 	for line := range ll.Iterate(done) {
 		if shouldSkipLine(skipTokens, line) {
 			continue
 		}
-		//	match := includeLine(query, line, restOfQuery)
 		match, m := line.MatchOrNot(restTokens, matchSet)
 		if m != nil {
 			matchSet[m] = logline.Member
@@ -121,7 +119,6 @@ func search(input string, limit int, offset int) (ret []logline.LogLine, t time.
 				continue
 			}
 			match := line.MatchOrNotCount(restTokens, matchSet)
-			//	match := includeLine(query, line, restOfQuery)
 			if match {
 				count++
 			}
